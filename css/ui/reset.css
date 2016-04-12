@@ -1,0 +1,116 @@
+
+/* reset.css
+ * MemberPress CSS Reset File
+ */
+
+body .mp_wrapper.mp_reset_wrapper,
+body .mp_wrapper.mp_reset_wrapper div,
+body .mp_wrapper.mp_reset_wrapper span,
+body .mp_wrapper.mp_reset_wrapper iframe,
+body .mp_wrapper.mp_reset_wrapper h1,
+body .mp_wrapper.mp_reset_wrapper h2,
+body .mp_wrapper.mp_reset_wrapper h3,
+body .mp_wrapper.mp_reset_wrapper h4,
+body .mp_wrapper.mp_reset_wrapper h5,
+body .mp_wrapper.mp_reset_wrapper h6,
+body .mp_wrapper.mp_reset_wrapper p,
+body .mp_wrapper.mp_reset_wrapper img,
+body .mp_wrapper.mp_reset_wrapper ol,
+body .mp_wrapper.mp_reset_wrapper ul,
+body .mp_wrapper.mp_reset_wrapper li,
+body .mp_wrapper.mp_reset_wrapper fieldset,
+body .mp_wrapper.mp_reset_wrapper form,
+body .mp_wrapper.mp_reset_wrapper label,
+body .mp_wrapper.mp_reset_wrapper legend,
+body .mp_wrapper.mp_reset_wrapper input[type=text],
+body .mp_wrapper.mp_reset_wrapper input[type=email],
+body .mp_wrapper.mp_reset_wrapper input[type=tel],
+body .mp_wrapper.mp_reset_wrapper input[type=url],
+body .mp_wrapper.mp_reset_wrapper input[type=number],
+body .mp_wrapper.mp_reset_wrapper input[type=password],
+body .mp_wrapper.mp_reset_wrapper select,
+body .mp_wrapper.mp_reset_wrapper textarea,
+body .mp_wrapper.mp_reset_wrapper input[type=submit],
+body .mp_wrapper.mp_reset_wrapper input[type=button],
+body .mp_wrapper.mp_reset_wrapper input[type=image],
+body .mp_wrapper.mp_reset_wrapper button,
+body .mp_wrapper.mp_reset_wrapper table,
+body .mp_wrapper.mp_reset_wrapper caption,
+body .mp_wrapper.mp_reset_wrapper tbody,
+body .mp_wrapper.mp_reset_wrapper tfoot,
+body .mp_wrapper.mp_reset_wrapper thead,
+body .mp_wrapper.mp_reset_wrapper tr,
+body .mp_wrapper.mp_reset_wrapper th,
+body .mp_wrapper.mp_reset_wrapper td {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+}
+
+body .mp_wrapper.mp_reset_wrapper div,
+body .mp_wrapper.mp_reset_wrapper span,
+body .mp_wrapper.mp_reset_wrapper iframe,
+body .mp_wrapper.mp_reset_wrapper p,
+body .mp_wrapper.mp_reset_wrapper img,
+body .mp_wrapper.mp_reset_wrapper ol,
+body .mp_wrapper.mp_reset_wrapper ul,
+body .mp_wrapper.mp_reset_wrapper li,
+body .mp_wrapper.mp_reset_wrapper fieldset,
+body .mp_wrapper.mp_reset_wrapper form,
+body .mp_wrapper.mp_reset_wrapper label,
+body .mp_wrapper.mp_reset_wrapper legend,
+body .mp_wrapper.mp_reset_wrapper input[type=text],
+body .mp_wrapper.mp_reset_wrapper input[type=email],
+body .mp_wrapper.mp_reset_wrapper input[type=tel],
+body .mp_wrapper.mp_reset_wrapper input[type=url],
+body .mp_wrapper.mp_reset_wrapper input[type=number],
+body .mp_wrapper.mp_reset_wrapper input[type=password],
+body .mp_wrapper.mp_reset_wrapper select,
+body .mp_wrapper.mp_reset_wrapper textarea,
+body .mp_wrapper.mp_reset_wrapper input[type=submit],
+body .mp_wrapper.mp_reset_wrapper input[type=button],
+body .mp_wrapper.mp_reset_wrapper input[type=image],
+body .mp_wrapper.mp_reset_wrapper button,
+body .mp_wrapper.mp_reset_wrapper table,
+body .mp_wrapper.mp_reset_wrapper caption,
+body .mp_wrapper.mp_reset_wrapper tbody,
+body .mp_wrapper.mp_reset_wrapper tfoot,
+body .mp_wrapper.mp_reset_wrapper thead,
+body .mp_wrapper.mp_reset_wrapper tr,
+body .mp_wrapper.mp_reset_wrapper th,
+body .mp_wrapper.mp_reset_wrapper td {
+  font-weight: inherit;
+  font-style: inherit;
+  font-size: 100%;
+  font-family: inherit;
+  vertical-align: baseline;
+  line-height: 1;
+  font-weight: normal;
+}
+
+body .mp_wrapper.mp_reset_wrapper div,
+body .mp_wrapper.mp_reset_wrapper span,
+body .mp_wrapper.mp_reset_wrapper p {
+  line-height: 1.8;
+}
+
+body .mp_wrapper.mp_reset_wrapper fieldset,
+body .mp_wrapper.mp_reset_wrapper img {
+  border: 0;
+}
+
+body .mp_wrapper.mp_reset_wrapper ol,
+body .mp_wrapper.mp_reset_wrapper ul,
+body .mp_wrapper.mp_reset_wrapper li {
+  list-style: none;
+}
+
+body .mp_wrapper.mp_reset_wrapper a img {
+  border: none;
+}
+
+body .mp_wrapper.mp_reset_wrapper :focus {
+  outline: 0;
+}
+

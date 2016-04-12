@@ -1,0 +1,73 @@
+.mepr-rule-access-select {
+  width: 100%;
+  height: 200px;
+  min-height: 200px;
+}
+
+.icon32 {
+  float: right;
+  display: inline-block;
+  background:url('../images/memberpress-32.png') !important;
+  width: 267px !important;
+  height: 32px !important;
+}
+
+@media all and (-webkit-min-device-pixel-ratio: 1.5) {
+  .icon32 {
+    background-image: url('../images/memberpress-32@2x.png') !important;
+    background-size: 267px 32px !important;
+  }
+}
+
+#mepr-rules-drip-area,
+#mepr-rules-expires-area {
+  padding:15px;
+}
+
+div#partial_content_codes_hidden {
+  margin-top:5px;
+  padding:15px;
+  border:1px solid #CCC;
+  border-radius: 3px;
+}
+
+.ui-autocomplete {
+  max-height: 250px;
+  min-width: 300px;
+  overflow-y: auto;
+  /* prevent horizontal scrollbar */
+  overflow-x: hidden;
+}
+
+.mepr-red-border {
+  border: 2px solid #FF0000 !important;
+}
+
+/* Clean up rule edit page */
+#submitdiv #misc-publishing-actions,
+#submitdiv #minor-publishing-actions {
+  display: none;
+}
+
+/* Clean up rule listing page */
+.view-switch, #post-query-submit {
+  display: none;
+}
+
+#titlediv {
+  margin-bottom:35px;
+}
+
+#mepr-rule-loading-icon,
+#rule-content-text,
+#_mepr_rules_content {
+  vertical-align:middle;
+}
+
+#mepr-rules-drip-area input,
+#mepr-rules-drip-area select ,
+#mepr-rules-expires-area input,
+#mepr-rules-expires-area select {
+  vertical-align:middle;
+  height:30px;
+}

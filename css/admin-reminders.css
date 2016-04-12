@@ -1,0 +1,25 @@
+/* Admin Reminders */
+#mepr_trigger_length {
+  border: none;
+  box-shadow: none;
+}
+
+.mepr-emails-wrap label {
+  min-width: 350px !important;
+  width: 350px !important;
+  max-width: 350px !important;
+}
+
+.mepr-config-email-row {
+  display: none;
+}
+
+#mepr-reminder-emails {
+  margin-top: 10px;
+  padding: 1px 10px 1px 10px;
+}
+
+#submitdiv #misc-publishing-actions,
+#submitdiv #minor-publishing-actions {
+  display: none;
+}

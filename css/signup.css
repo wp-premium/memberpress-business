@@ -1,0 +1,117 @@
+.mepr-hidden {
+  display: none;
+}
+
+.mp_wrapper .mepr-form-has-errors,
+.mp_wrapper .cc-error {
+  display: none;
+  color: red;
+  padding-left: 5px;
+}
+
+.mp_wrapper .mepr-cards,
+.mp_wrapper .visa,
+.mp_wrapper .amex,
+.mp_wrapper .mastercard,
+.mp_wrapper .discover {
+  background-repeat: no-repeat !important;
+  background-position-x: 98% !important;
+  background-position-y: 50% !important;
+}
+
+.mp_wrapper .visa {
+  background: url('../images/checkout/visa.png') right no-repeat !important;
+}
+
+.mp_wrapper .mastercard {
+  background: url('../images/checkout/mastercard.png') right no-repeat !important;
+}
+
+.mp_wrapper .discover {
+  background: url('../images/checkout/discover.png') right no-repeat !important;
+}
+
+.mp_wrapper .amex {
+  background: url('../images/checkout/amex.png') right no-repeat !important;
+}
+
+.mp_wrapper .dinersclub {
+  /* TODO: Support this logo at some point */
+}
+
+.mp_wrapper .jcb {
+  /* TODO: Support this logo at some point */
+}
+
+.mp_wrapper .mepr-cards {
+  background: url('../images/checkout/cards.png') right no-repeat !important;
+}
+
+/* A bit of a hack to get the invalid color looking more accurate */
+.mp_wrapper .mepr-cards.invalid {
+  opacity: 1;
+}
+
+.mp_wrapper .mepr-payment-method {
+  display: block;
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.mp_wrapper .mepr-payment-method input {
+  display: inline-block;
+  text-align: left;
+  line-height: 32px;
+  vertical-align: middle;
+}
+
+.mp_wrapper .mepr-payment-method .mepr-payment-method-label-text,
+.mp_wrapper .mepr-payment-method span.mepr-payment-method-icon {
+  padding-left: 15px;
+  display: inline-block;
+  width: auto;
+  line-height: 32px;
+  vertical-align: middle !important;
+}
+
+.mp_wrapper .mepr-payment-method .mepr-payment-method-desc-text {
+  margin-top: 5px;
+  padding: 10px;
+  background-color: white;
+}
+
+.mp_wrapper .mepr-payment-method .mepr-payment-method-label-text,
+.mp_wrapper .mepr-payment-method input {
+  /* margin-top: -10px; */
+}
+
+.mp_wrapper .mepr-form-checkbox, .mepr-form-radio {
+  /* width: 20px !important; */
+}
+
+.mp_wrapper .mepr_custom_field .mepr-form-checkbox {
+  padding-left: 0 !important;
+  margin-left: 2px !important;
+  margin-bottom: 10px !important;
+}
+
+.mp_wrapper label.mepr-form-checkbox-label {
+  width: auto !important;
+  display: inline !important;
+}
+
+.mp_wrapper .mepr_payment_method {
+  margin: 25px 0 !important;
+  padding: 15px !important;
+  background-color: #f5f5f5 !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  /* max-width: 635px; */
+}
+
+.mp_wrapper #mepr_no_val {
+  display:none !important;
+  margin: 0;
+  padding: 0;
+}
+

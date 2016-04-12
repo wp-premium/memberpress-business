@@ -1,0 +1,21 @@
+/** MP PLAN TEMPLATE: classic */
+.mepr-price-menu.classic.classic_light {
+  color: white !important;
+}
+
+.mepr-price-menu.classic.classic_light .mepr-price-box {
+  border: 2px solid white;
+}
+
+.mepr-price-menu.classic.classic_light .mepr-price-box-benefits {
+  border-top: 2px solid white;
+}
+
+.mepr-price-menu.classic.classic_light .mepr-price-box-benefits .mepr-price-box-benefits-list .mepr-price-box-benefits-item {
+  border-bottom: 1px solid white;
+}
+
+.mepr-price-menu.classic.classic_light .mepr-price-box-benefits .mepr-price-box-benefits-list .mepr-price-box-benefits-item:last-child {
+  border-bottom: none;
+}
+

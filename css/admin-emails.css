@@ -1,0 +1,39 @@
+.mepr-edit-email-toggle {
+  margin-left: 5px;
+}
+
+.mepr-edit-email input[type=text], .mepr-edit-email textarea {
+  width: 500px
+}
+
+.mepr-emails-pane {
+  margin-left: 15px;
+}
+
+.mepr-edit-email textarea {
+  min-height: 300px;
+}
+
+.mepr-emails-wrap label {
+  display: inline-block;
+  min-width: 275px;
+  width: 275px;
+  max-width: 275px;
+}
+
+.mepr-emails-wrap textarea, .emails .legend-pane {
+  display: inline-block;
+  vertical-align: top;
+}
+
+.mepr-emails-wrap .legend-pane {
+  padding-left: 10px;
+  /* border: 1px solid #DFDFDF;
+  border-radius: 3px;
+  -webkit-border-radius: 3px;
+  margin-left: 10px; */
+
+  min-width: 200px;
+  max-width: 200px;
+  width: 200px;
+}

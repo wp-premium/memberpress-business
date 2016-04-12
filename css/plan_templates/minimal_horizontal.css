@@ -1,0 +1,247 @@
+/* CSS for plans here */
+.mepr-price-menu.minimal_horizontal {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.mepr-price-menu.minimal_horizontal .mepr-price-boxes {
+  padding: 0;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.mepr-price-menu.minimal_horizontal .mepr-price-box {
+  vertical-align: bottom;
+  display: inline-block;
+  /* background-color: #dedede; */
+  padding: 7px;
+  margin: 0;
+  text-align: center;
+  -webkit-border-top-left-radius: 5px;
+  -webkit-border-top-right-radius: 5px;
+  -moz-border-radius-topleft: 5px;
+  -moz-border-radius-topright: 5px;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+}
+
+/* Right now we're good up to 10 columns */
+.mepr-price-menu.minimal_horizontal .mepr-price-boxes.mepr-1-col .mepr-price-box {
+  width: 100%;
+}
+
+.mepr-price-menu.minimal_horizontal .mepr-price-boxes.mepr-2-col .mepr-price-box {
+  width: 47%;
+}
+
+.mepr-price-menu.minimal_horizontal .mepr-price-boxes.mepr-3-col .mepr-price-box {
+  width: 30%;
+}
+
+.mepr-price-menu.minimal_horizontal .mepr-price-boxes.mepr-4-col .mepr-price-box {
+  width: 22.5%;
+}
+
+.mepr-price-menu.minimal_horizontal .mepr-price-boxes.mepr-5-col .mepr-price-box {
+  width: 18%;
+}
+
+.mepr-price-menu.minimal_horizontal .mepr-price-boxes.mepr-6-col .mepr-price-box {
+  width: 14.5%;
+}
+
+.mepr-price-menu.minimal_horizontal .mepr-price-boxes.mepr-7-col .mepr-price-box {
+  width: 12%;
+}
+
+.mepr-price-menu.minimal_horizontal .mepr-price-boxes.mepr-8-col .mepr-price-box {
+  width: 11%;
+}
+
+.mepr-price-menu.minimal_horizontal .mepr-price-boxes.mepr-9-col .mepr-price-box {
+  width: 9%;
+}
+
+.mepr-price-menu.minimal_horizontal .mepr-price-boxes.mepr-10-col .mepr-price-box {
+  width: 8%;
+}
+
+.mepr-price-menu.minimal_horizontal .mepr-price-box.highlighted {
+  /* background-color: #f1f1f1; */
+  padding: 10px;
+}
+
+.mepr-price-menu.minimal_horizontal .mepr-price-box-title {
+  font-size: 175%;
+  font-weight: bold;
+  margin-top:10px;
+  margin-bottom:0px;
+}
+
+.mepr-price-menu.minimal_horizontal .mepr-price-box-price {
+  margin-top: 0px;
+  margin-bottom: 0px;
+  font-weight: bold;
+  font-size: 210%;
+}
+
+.mepr-price-menu.minimal_horizontal .mepr-price-box-heading {
+  margin-top: 5px;
+  font-size: 120%;
+}
+
+.mepr-price-menu.minimal_horizontal .mepr-price-box-benefits .mepr-price-box-benefits-list {
+  margin: 10px 0;
+  font-weight: bold;
+}
+
+.mepr-price-menu.minimal_horizontal .mepr-price-box-benefits .mepr-price-box-benefits-list .mepr-price-box-benefits-item {
+  font-size: 100%;
+  margin: 0;
+  padding-top: 5px;
+  padding-bottom: 7px;
+  /* border-bottom: 1px dotted #888888; */
+}
+
+.mepr-price-menu.minimal_horizontal .mepr-price-box-footer {
+  margin-top: 5px;
+}
+
+.mepr-price-menu.minimal_horizontal .mepr-price-box-button {
+  margin: 10px 0;
+}
+
+.mepr-price-menu.minimal_horizontal .mepr-price-box.highlighted .mepr-price-box-button a {
+  font-size: 150%;
+}
+
+.mepr-price-menu.minimal_horizontal .mepr-price-box-button a {
+  /*padding: 5px 7px;*/
+  font-weight: bold;
+  /* background-color: #f4f4f4; */
+}
+
+.mepr-price-menu.minimal_horizontal .mepr-price-box-button a:hover {
+  text-decoration: none;
+  /* background-color: white; */
+}
+
+.mepr-price-menu.minimal_horizontal .mepr-price-box .mepr-price-box-button a.mepr-disabled {
+  /* background-color: #9f9f9f; */
+  cursor: default;
+}
+
+.mepr-price-menu.minimal_horizontal .mepr-price-box .mepr-price-box-button a.mepr-disabled:hover {
+  /* background-color: #9f9f9f; */
+}
+
+/* Responsive Design */
+/* Effectively just pulls in the gray_vertical.css styles */
+@media all and (max-width: 1200px) {
+  .mepr-price-menu.minimal_horizontal .mepr-price-box-heading {
+    font-size: 100%;
+  }
+
+  .mepr-price-menu.minimal_horizontal .mepr-price-box-benefits .mepr-price-box-benefits-list .mepr-price-box-benefits-item {
+    font-size: 90%;
+  }
+}
+
+@media all and (max-width: 1023px) {
+  .mepr-price-menu.minimal_horizontal .mepr-price-menu, .mepr-price-boxes {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  .mepr-price-menu.minimal_horizontal .mepr-price-box,
+  .mepr-price-menu.minimal_horizontal .mepr-price-boxes.mepr-1-col .mepr-price-box,
+  .mepr-price-menu.minimal_horizontal .mepr-price-boxes.mepr-2-col .mepr-price-box,
+  .mepr-price-menu.minimal_horizontal .mepr-price-boxes.mepr-3-col .mepr-price-box,
+  .mepr-price-menu.minimal_horizontal .mepr-price-boxes.mepr-4-col .mepr-price-box,
+  .mepr-price-menu.minimal_horizontal .mepr-price-boxes.mepr-5-col .mepr-price-box,
+  .mepr-price-menu.minimal_horizontal .mepr-price-boxes.mepr-6-col .mepr-price-box,
+  .mepr-price-menu.minimal_horizontal .mepr-price-boxes.mepr-7-col .mepr-price-box,
+  .mepr-price-menu.minimal_horizontal .mepr-price-boxes.mepr-8-col .mepr-price-box,
+  .mepr-price-menu.minimal_horizontal .mepr-price-boxes.mepr-9-col .mepr-price-box,
+  .mepr-price-menu.minimal_horizontal .mepr-price-boxes.mepr-10-col .mepr-price-box {
+    /* background-color: #dedede; */
+    width: 90%;
+    padding: 10px;
+    margin: 0 auto;
+    margin-bottom: 5px;
+    text-align: center;
+    -webkit-border-radius: 5px;
+    -moz-border-radius: 5px;
+    border-radius: 5px;
+  }
+
+  .mepr-price-menu.minimal_horizontal .mepr-price-box.highlighted,
+  .mepr-price-menu.minimal_horizontal .mepr-price-boxes.mepr-1-col .mepr-price-box.highlighted,
+  .mepr-price-menu.minimal_horizontal .mepr-price-boxes.mepr-2-col .mepr-price-box.highlighted,
+  .mepr-price-menu.minimal_horizontal .mepr-price-boxes.mepr-3-col .mepr-price-box.highlighted,
+  .mepr-price-menu.minimal_horizontal .mepr-price-boxes.mepr-4-col .mepr-price-box.highlighted,
+  .mepr-price-menu.minimal_horizontal .mepr-price-boxes.mepr-5-col .mepr-price-box.highlighted,
+  .mepr-price-menu.minimal_horizontal .mepr-price-boxes.mepr-6-col .mepr-price-box.highlighted,
+  .mepr-price-menu.minimal_horizontal .mepr-price-boxes.mepr-7-col .mepr-price-box.highlighted,
+  .mepr-price-menu.minimal_horizontal .mepr-price-boxes.mepr-8-col .mepr-price-box.highlighted,
+  .mepr-price-menu.minimal_horizontal .mepr-price-boxes.mepr-9-col .mepr-price-box.highlighted,
+  .mepr-price-menu.minimal_horizontal .mepr-price-boxes.mepr-10-col .mepr-price-box.highlighted {
+    /* background-color: #f1f1f1; */
+    padding: 10px;
+    width: 95% !important;
+  }
+
+  .mepr-price-menu.minimal_horizontal .mepr-price-box-title {
+    font-size: 175%;
+    font-weight: bold;
+    margin-top:10px;
+    margin-bottom:5px;
+  }
+
+  .mepr-price-menu.minimal_horizontal .mepr-price-box-price {
+    margin-top: 15px;
+    margin-bottom: 15px;
+    font-weight: bold;
+    font-size: 210%;
+  }
+
+  .mepr-price-menu.minimal_horizontal .mepr-price-box-heading {
+    margin-top: 5px;
+    font-size: 120%;
+  }
+
+  .mepr-price-menu.minimal_horizontal .mepr-price-box-benefits .mepr-price-box-benefits-list {
+    margin: 10px 0;
+    font-weight: bold;
+  }
+
+  .mepr-price-menu.minimal_horizontal .mepr-price-box-benefits .mepr-price-box-benefits-list .mepr-price-box-benefits-item {
+    font-size: 110%;
+    margin: 0;
+    padding-top: 5px;
+    padding-bottom: 7px;
+    /* border-bottom: 1px dotted #888888; */
+  }
+
+  .mepr-price-menu.minimal_horizontal .mepr-price-box-footer {
+    margin-top: 5px;
+  }
+
+  .mepr-price-menu.minimal_horizontal .mepr-price-box-button {
+    margin: 10px 0;
+  }
+
+  .mepr-price-menu.minimal_horizontal .mepr-price-box-button a {
+    /*padding: 5px 7px;*/
+    font-weight: bold;
+    /* background-color: #f4f4f4; */
+  }
+
+  .mepr-price-menu.minimal_horizontal .mepr-price-box-button a:hover {
+    text-decoration: none;
+    background-color: white;
+  }
+}
+

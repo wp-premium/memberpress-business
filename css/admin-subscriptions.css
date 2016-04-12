@@ -1,0 +1,45 @@
+.icon32 {
+  float: right;
+  display: inline-block;
+  background:url('../images/memberpress-32.png') !important;
+  width: 267px !important;
+  height: 32px !important;
+}
+
+@media all and (-webkit-min-device-pixel-ratio: 1.5) {
+  .icon32 {
+    background-image: url('../images/memberpress-32@2x.png') !important;
+    background-size: 267px 32px !important;
+  }
+}
+
+a.status_editable {
+  color:#21759B;
+  text-decoration:underline;
+}
+
+a:hover.status_editable {
+  color:red;
+  text-decoration:underline;
+}
+
+a.status_save {
+  line-height:2;
+}
+
+div.status_hidden, div.status_saving {
+  display:none;
+}
+
+.column-col_subscr_id {
+  width: 20%;
+}
+
+.column-col_product_meta {
+  width: 15%;
+}
+
+.column-col_txn_count {
+  width: 5%;
+}
+

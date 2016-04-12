@@ -1,0 +1,102 @@
+.icon32 {
+  float: right;
+  display: inline-block;
+  background:url('../images/memberpress-32.png') !important;
+  width: 267px !important;
+  height: 32px !important;
+}
+
+@media all and (-webkit-min-device-pixel-ratio: 1.5) {
+  .icon32 {
+    background-image: url('../images/memberpress-32@2x.png') !important;
+    background-size: 267px 32px !important;
+  }
+}
+
+div#hidden-line-item {
+  display:none;
+}
+
+.remove-span {
+  float:right;
+  padding-top:4px;
+}
+
+div#mepr-groups-form {
+  padding:10px;
+}
+
+#products-label {
+  margin-top:15px;
+  display:inline-block;
+}
+
+/*Sortable UI stuff*/
+.mepr-sortable {
+  list-style-position:inside;
+  margin:0;
+  padding:0;
+  width:100%;
+}
+
+.mepr-sortable li {
+  margin:0 3px 3px 3px;
+  padding:0.4em;
+  padding-left:1em;
+  border:1px dashed silver;
+}
+
+.mepr-hover {
+  cursor:move;
+}
+
+/*Group Style Options*/
+select.group-style-select {
+  width:125px;
+}
+
+div#group-option-dropdowns {
+  margin-top:20px;
+}
+
+#group-label-for-dropdowns {
+  font-weight:bold;
+  margin-top: 0px;
+  padding-top: 0px;
+}
+
+#mepr_hidden_pricing_page_theme,
+#mepr_hidden_alternate_group_url {
+  margin-top:5px;
+  padding:15px;
+  border:1px solid #CCC;
+  border-radius: 3px;
+  display:block;
+}
+
+div#mepr-shortcode-group-pricing-boxes-area {
+  margin-top:5px;
+  padding:15px;
+  border:1px solid #CCC;
+  border-radius: 3px;
+  font-weight:bold;
+}
+
+#mepr-group-price-box-shortcodes {
+  display: none;
+}
+
+.mepr-group-button-css {
+  width: 99%;
+}
+
+/* Clean up edit page */
+#submitdiv #misc-publishing-actions,
+#submitdiv #minor-publishing-actions {
+  display: none;
+}
+
+/* Clean up listing page */
+.view-switch, #post-query-submit {
+  display: none;
+}

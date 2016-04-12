@@ -1,0 +1,256 @@
+/* Front end theme for MemberPress pages */
+
+.mp_wrapper {
+  overflow: inherit;
+  /* margin: 10px 0; */
+  /* max-width: 740px !important; */
+  /* margin: 0 auto; */
+  box-sizing: border-box;
+}
+
+.mp_wrapper h1,
+.mp_wrapper h2,
+.mp_wrapper h3 {
+  font-weight: normal;
+  border: none;
+  outline: none;
+  background: none;
+}
+
+.mp_wrapper img {
+  box-shadow: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+}
+
+.mp_wrapper :focus {
+  outline: 0;
+}
+
+.mp_wrapper form {
+  text-align: left;
+}
+
+.mp_wrapper textarea,
+.mp_wrapper select,
+.mp_wrapper input[type=text],
+.mp_wrapper input[type=url],
+.mp_wrapper input[type=email],
+.mp_wrapper input[type=tel],
+.mp_wrapper input[type=number],
+.mp_wrapper input[type=password] {
+  width: 100% !important;
+  outline-style: none !important;
+  font-size: inherit !important;
+  font-family: inherit !important;
+  padding: 10px !important;
+  letter-spacing: normal !important;
+  border: 1px solid rgba(0, 0, 0, 0.2) !important;
+  /* margin-bottom: 10px !important; */
+  display: inline;
+  box-sizing: border-box;
+}
+
+.mp_wrapper label,
+.mp_wrapper .mp-row {
+  font-size: inherit;
+  font-family: inherit;
+  letter-spacing: normal;
+  display: inline-block;
+/*
+  font-weight: bold;
+  margin-bottom: 5px;
+*/
+}
+
+.mp_wrapper .mepr-radios-field,
+.mp_wrapper .mepr-checkbox-field,
+.mp_wrapper .mepr-checkboxes-field,
+.mp_wrapper label {
+  width: 100% !important;
+  display: inline-block;
+}
+
+.mp_wrapper .mp-form-row {
+  margin-bottom: 10px;
+  width: 100% !important;
+}
+
+.mp_wrapper input[type=image] {
+  border: none !important;
+  padding: 0 !important;
+  width: auto !important;
+}
+
+.mp_wrapper textarea {
+  outline-style: none;
+  font-size: inherit;
+  font-family: inherit;
+  letter-spacing: normal;
+  padding: 4px 2px 4px 2px;
+  resize: none;
+}
+
+.mp_wrapper .mepr_price label,
+.mp_wrapper .mepr_price .mepr_price_cell {
+  display: inline !important;
+}
+
+table.mp-table thead,
+table.mp-table tbody,
+table.mp-table tfoot,
+table.mp-table tr,
+table.mp-table th,
+table.mp-table td {
+  border: 0;
+  font-family: inherit;
+  font-size: 100%;
+  font-style: inherit;
+  font-weight: inherit;
+  margin: 0;
+  outline: 0;
+  padding: 0;
+  vertical-align: baseline;
+}
+
+table.mp-table {
+  display: block;
+  border-collapse: separate;
+  border-spacing: 0;
+  border-width: 1px 0 0 1px !important;
+  margin-bottom: 24px;
+  width: 100% !important;
+  display: table;
+}
+
+table.mp-table thead {
+  display: table-header-group;
+}
+
+table.mp-table tfoot {
+  display: table-footer-group;
+}
+
+table.mp-table tr {
+  display: table-row;
+}
+
+table.mp-table,
+table.mp-table th,
+table.mp-table td {
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+table.mp-table th,
+table.mp-table td {
+  display: table-cell;
+  padding: 8px;
+  border-width: 0 1px 1px 0 !important;
+}
+
+table.mp-table th {
+  text-align: left;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+table.mp-table .mp-currency-cell {
+  text-align: right;
+}
+
+.mepr_error, .mepr_updated {
+  padding: 5px 5px 5px 15px !important;
+  margin-bottom: 25px !important;
+  width: 100%;
+}
+
+.mepr_error {
+  background-color: #feb9bb !important;
+  border: 1px solid #d40022 !important;
+}
+
+.mepr_error ul {
+  padding: 0 0 5px 0 !important;
+  margin: 0 !important;
+}
+
+.mepr_error ul li {
+  list-style-type: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.mepr_updated {
+  background-color: #def4c5 !important;
+  border: 1px solid #4d8c2e !important;
+}
+
+.mepr-form input.invalid,
+.mepr-form select.invalid,
+.mepr-form textarea.invalid,
+.mepr-form label.mepr-checkbox-field.invalid,
+.mepr-form div.mepr-checkboxes-field.invalid,
+.mepr-form div.mepr-radios-field.invalid {
+  border: 2px solid red !important;
+  background-color: #FF6666 !important;
+}
+
+.validation.failed:after {
+  color: red;
+  content: 'Validation failed';
+}
+
+.validation.passed:after {
+  color: green;
+  content: 'Validation passed';
+}
+
+.mepr-radios-field, .mepr-checkboxes-field {
+  display: inline-block !important;
+  width: 250px !important;
+  margin-bottom: 10px !important;
+}
+
+.mepr-radios-field-row, .mepr-checkboxes-field-row {
+  display: block !important;
+  padding-left: 0 !important;
+  margin-left: 2px !important;
+}
+
+input.mepr-form-radios-input, input.mepr-form-checkboxes-input {
+  padding-left: 0;
+  margin-left: 0;
+  width: auto;
+  margin-right: 5px;
+  display: inline !important;
+  text-align: left;
+}
+
+label.mepr-form-radios-label, label.mepr-form-checkboxes-label {
+  display: inline !important;
+  width: 222px !important;
+  max-width: 222px !important;
+  min-width: 222px !important;
+}
+
+.mp_wrapper .mp-form-row label {
+  display: inline !important;
+}
+
+.mepr-hidden {
+  display: none;
+}
+
+/* users subscriptions list shortcode css */
+.mp_users_subscriptions_list ul {
+  list-style:none !important;
+}
+
+.mp_users_subscriptions_list ul li {
+  padding:5px !important;
+  margin:0 !important;
+}
+
+li.mp_users_subscriptions_list_alt {
+  background:#eee;
+}

@@ -1,0 +1,46 @@
+.mepr-coupon-products-select {
+  width:100%;
+  height:200px;
+  min-height:200px;
+}
+
+.mepr-coupons-trial-hidden {
+  margin-top: 10px;
+  margin-left: 15px;
+}
+
+#submitdiv #misc-publishing-actions,
+#submitdiv #minor-publishing-actions {
+  display: none;
+}
+
+.mepr-coupon-expires {
+  margin-top:10px;
+}
+
+.icon32 {
+  float: right;
+  display: inline-block;
+  background:url('../images/memberpress-32.png') !important;
+  width: 267px !important;
+  height: 32px !important;
+}
+
+@media all and (-webkit-min-device-pixel-ratio: 1.5) {
+  .icon32 {
+    background-image: url('../images/memberpress-32@2x.png') !important;
+    background-size: 267px 32px !important;
+  }
+}
+
+/* Clean up coupon edit page */
+#submitdiv #misc-publishing-actions,
+#submitdiv #minor-publishing-actions {
+  display: none;
+}
+
+/* Clean up coupon listing page */
+.view-switch, #post-query-submit {
+  display: none;
+}
+

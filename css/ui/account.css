@@ -1,0 +1,130 @@
+/* Account page */
+div#mepr-account-nav {
+  margin-bottom:25px;
+  width: auto !important;
+}
+
+#mepr-subscriptions-paging,
+#mepr-payments-paging {
+  width:auto !important;
+  margin-top: 10px;
+  border-spacing: 0;
+}
+
+.mepr-nav-item {
+  padding: 0 10px 0 0;
+}
+
+.mepr-active-nav-tab {
+  font-weight: bold;
+}
+
+.mepr-active,
+.mepr-inactive {
+  font-weight: bold;
+}
+
+.mepr-active {
+  color: limegreen;
+}
+
+.mepr-inactive {
+  color: darkred;
+}
+
+.mepr-account-terms,
+.mepr-account-subscr-id,
+.mepr-account-rebill {
+  font-size: 75%;
+  font-weight: bold;
+  font-style: italic;
+  color: #464646;
+}
+
+/* NEW Responsive Tables */
+.mp_wrapper table.mepr-account-table {
+  border:1px solid #ccc;
+  width:98% !important;
+  margin:0;
+  padding:0;
+  border-collapse:collapse;
+  border-spacing:0;
+}
+
+.mp_wrapper table.mepr-account-table tr {
+  border:1px solid #ddd;
+  padding:5px;
+}
+
+.mp_wrapper table.mepr-account-table td {
+  padding:5px;
+  text-align:left;
+  border-left:1px solid #ededed;
+}
+
+.mp_wrapper table.mepr-account-table th {
+  padding:5px;
+  text-transform:uppercase;
+  font-size:12px;
+  letter-spacing:1px;
+}
+
+.mp_wrapper table.mepr-account-table tr.mepr-alt-row {
+  background:#eee;
+}
+
+@media screen and (max-width: 600px) {
+  .mp_wrapper table.mepr-account-table {
+    border:0;
+  }
+
+  .mp_wrapper table.mepr-account-table thead {
+    display:none !important;
+  }
+
+  .mp_wrapper table.mepr-account-table tr {
+    margin-bottom:10px;
+    display:block;
+    border-bottom:2px solid #ddd;
+  }
+
+  .mp_wrapper table.mepr-account-table td {
+    display:block;
+    text-align:right;
+    border-top:none;
+    border-left:none;
+    border-bottom:1px dotted #ccc;
+  }
+
+  .mp_wrapper table.mepr-account-table td:last-child {
+    border-bottom:0;
+  }
+
+  .mp_wrapper table.mepr-account-table td div{
+    padding:0;
+    margin:0;
+    margin-left:15px;
+  }
+
+  .mp_wrapper table.mepr-account-table td:before {
+    content:attr(data-label);
+    float:left;
+    text-transform:uppercase;
+    font-weight:bold;
+  }
+
+  .mepr-account-subscr-id,
+  .mepr-account-auto-rebill,
+  .mepr-account-rebill {
+    display:none;
+  }
+
+  .mepr-account-terms,
+  .mepr-account-subscr-id,
+  .mepr-account-rebill {
+    font-size: inherit;
+    font-weight: inherit;
+    font-style: inherit;
+    color: inherit;
+  }
+}

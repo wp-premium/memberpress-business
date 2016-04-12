@@ -1,0 +1,48 @@
+/* Inline Transaction Editables CSS*/
+a.button {
+  line-height:2;
+}
+
+div.status_saving, div.status_editable {
+  display:none;
+}
+
+div.status_initial a{
+  color:#21759B;
+  text-decoration:underline;
+}
+
+.icon32 {
+  float: right;
+  display: inline-block;
+  background:url('../images/memberpress-32.png') !important;
+  width: 267px !important;
+  height: 32px !important;
+}
+
+@media all and (-webkit-min-device-pixel-ratio: 1.5) {
+  .icon32 {
+    background-image: url('../images/memberpress-32@2x.png') !important;
+    background-size: 267px 32px !important;
+  }
+}
+
+.column-col_delete_txn {
+  width:18px;
+}
+
+.column-col_id {
+  width:58px;
+}
+
+#mepr_resend_txn_email {
+  margin:15px;
+}
+
+th#col_trans_num {
+  width: 18em;
+}
+
+#txn-coupon-title {
+  color:blue;
+}

@@ -1,0 +1,44 @@
+div#mepr-widget-report {
+  height:225px;
+}
+
+.widget_info_block {
+  width:100px;
+  height:60px;
+  border:1px solid #CCC;
+  vertical-align: top;
+  margin-right:4px;
+  margin-bottom:4px;
+  background-color: white;
+  display: inline-block;
+  text-align:center;
+  padding: 10px 5px;
+  font-size:12px;
+  -webkit-border-radius: 3px;
+  -moz-border-radius: 3px;
+  border-radius: 3px;
+}
+
+.widget_info_block h4 {
+  margin:0;
+  padding:0;
+  padding-top:7px !important;
+  font-weight:bold !important;
+  font-size: 18px !important;
+}
+
+#widget-info-blocks p {
+  font-style:italic;
+  margin-bottom:10px;
+}
+
+#mepr-widget-loadurl,
+#mepr-widget-currency-symbol {
+  display:none;
+}
+
+img#mepr-stats-logo {
+  width:100%;
+  height:auto !important;
+  max-width:400px;
+}

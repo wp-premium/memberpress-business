@@ -1,0 +1,31 @@
+.mp-password-strength-display {
+  display:inline-block;
+  padding:5px;
+  width:200px;
+  text-align:center;
+  line-height:1.2;
+}
+
+.mp-nopass {
+  background:#EEE;
+  border:1px solid #707071;
+  color:#707071;
+}
+
+.mp-weakpass {
+  background:#F37275;
+  border:1px solid #3E0002;
+  color:#3E0002;
+}
+
+.mp-mediumpass {
+  background:#FFAE6B;
+  border:1px solid #672E00;
+  color:#672E00;
+}
+
+.mp-strongpass {
+  background:#5AD869;
+  border:1px solid #002004;
+  color:#002004;
+}

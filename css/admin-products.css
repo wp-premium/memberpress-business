@@ -1,0 +1,286 @@
+.icon32 {
+  float: right;
+  display: inline-block;
+  background:url('../images/memberpress-32.png') !important;
+  width: 267px !important;
+  height: 32px !important;
+}
+
+@media all and (-webkit-min-device-pixel-ratio: 1.5) {
+  .icon32 {
+    background-image: url('../images/memberpress-32@2x.png') !important;
+    background-size: 267px 32px !important;
+  }
+}
+
+/* Membership Options Nav */
+div#product_options_wrapper {
+  padding:10px;
+  border-left: 1px solid #ccc;
+  border-right: 1px solid #ccc;
+  border-bottom: 1px solid #ccc;
+  background-color: white;
+}
+
+.mepr-hidden {
+  display: none;
+}
+
+/*Sortable UI stuff*/
+.mepr-sortable {
+  list-style-position:inside;
+  margin:0;
+  padding:0;
+  width:100%;
+}
+
+.mepr-sortable li {
+  margin:0 3px 3px 3px;
+  padding:0.4em;
+  padding-left:1em;
+  border:1px dashed silver;
+}
+
+/* Who can purchase meta box */
+ol#who-can-purchase-list {
+  margin-top:10px;
+  margin-bottom:10px;
+}
+
+span.who_have_purchased {
+  display:none;
+}
+
+div#who_can_purchase_hidden_row {
+  display:none;
+}
+
+/* Pricing Page Meta Box */
+div#mepr-price-box-configuration {
+  padding:10px;
+}
+
+div.wp-editor-container {
+  background:white;
+}
+
+li.benefit-item input {
+  width:60%;
+}
+
+div.pricing-options-pane {
+  overflow:hidden; /* HAS TO BE HERE - Seriously, don't remove it ;) or the sky will fall on your head */
+}
+
+div.pricing-options-pane textarea,
+div.pricing-options-pane input#_mepr_product_pricing_title,
+div.pricing-options-pane input#_mepr_product_pricing_button_text {
+  width:99%;
+}
+
+.mepr-meta-sub-pane {
+  margin-left: 4px;
+  margin-top: 5px;
+}
+
+/*Preview Box*/
+div#preview-pane {
+  float:right;
+  padding:0;
+  margin:0px 0px 10px 10px;
+}
+
+div.mepr-price-box {
+  width:250px;
+  min-height:50px;
+  margin: 5px 5px 10px 10px;
+  padding:10px;
+  border:1px solid #333;
+  background:#EEE;
+}
+
+div.mepr-price-box div {
+  padding:0;
+  margin:0;
+  display:block;
+  width:100%;
+  margin-bottom:15px;
+}
+
+span.pricing-preview {
+  display:block;
+  margin-bottom:5px;
+  font-weight:bold;
+}
+
+div.mepr-price-box-title {
+  font-weight:bold;
+  font-size:150%;
+  text-align:center;
+}
+
+div.mepr-price-box-benefits ul {
+  list-style-type:disc;
+  list-style-position:inside;
+  padding:0;
+  margin:0;
+}
+
+div.mepr-price-box-button {
+  text-align:center;
+}
+
+.mepr-meta-pane {
+  margin: 10px 10px 25px 10px;
+  padding: 15px;
+  border: 1px solid #DFDFDF;
+  -webkit-border-radius: 3px;
+  -moz-border-radius: 3px;
+  border-radius: 3px;
+}
+
+#sortable-benefits {
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
+.remove-span {
+  float:right;
+  padding-top:4px;
+}
+
+.mepr_hidden {
+  display:none;
+}
+
+div#mepr-shortcode-product-signup-form-area {
+  margin-top:15px;
+  padding:0 15px;
+  font-weight:bold;
+}
+
+div#mepr-product-thank-you-area {
+  margin-top:5px;
+  padding:15px;
+}
+
+#mepr-product-manually-place-form,
+#mepr-custom-login-redirect-urls,
+#mepr-product-payment-methods-wrap,
+#mepr-product-profile-fields-wrap,
+#mepr-product-disable-address-fields-wrap,
+.mepr-product-adv-item {
+  margin-top:20px;
+}
+
+div#mepr-custom-login-urls-area {
+  margin-top:10px;
+  padding:0 15px;
+}
+
+div#custom-login-urls-list-area {
+  margin-top:15px;
+}
+
+ul#custom-login-urls-list {
+  padding:0;
+  margin:10px 0 0 0;
+}
+
+.custom_login_urls_item {
+  display:block;
+  padding:5px 10px 5px 10px;
+  border:1px solid #CCC;
+}
+
+span#custom-login-url {
+  display:inline-block;
+  padding:5px;
+  background:#EEE;
+  border:1px solid #CCC;
+}
+
+div#mepr-product-additional-shortcodes-area {
+  margin-top:10px;
+  margin-bottom:10px;
+}
+
+#mepr-product-inactive-payment-methods-title,
+#mepr-product-inactive-payment-methods,
+#mepr-product-inactive-profile-fields-title,
+#mepr-product-inactive-profile-fields {
+  color: #888;
+  font-style: italic;
+}
+
+.mepr-profile-field-row {
+  cursor:pointer;
+}
+
+#mepr-product-welcome-email {
+  margin-top: 15px;
+  margin-bottom: 15px;
+}
+
+#mepr-product-welcome-email .mepr-emails-wrap label {
+  width: auto !important;
+  min-width: none !important;
+  max-width: none !important;
+}
+
+.nav-tab-active,
+.nav-tab-active:hover {
+  background-color: white;
+  border-bottom-color: white;
+}
+
+.product-options-panel {
+  padding: 10px;
+}
+
+.mepr-emails-wrap label {
+  display: inline !important;
+  min-width: auto !important;
+  width: auto !important;
+  max-width: auto !important;
+}
+
+table#mepr-interval-options tr td {
+  vertical-align: top;
+}
+
+table#mepr-interval-options tr td.mepr-interval-label {
+  padding-top: 5px;
+}
+
+input#_mepr_product_period-custom,
+input#_mepr_product_period-custom:focus,
+input#_mepr_product_period-custom:hover,
+input#_mepr_expire_after,
+input#_mepr_expire_after:focus,
+input#_mepr_expire_after:hover,
+input#_mepr_product_trial_days,
+input#_mepr_product_trial_days:focus,
+input#_mepr_product_trial_days:hover,
+input#_mepr_product_limit_cycles_num,
+input#_mepr_product_limit_cycles_num:focus,
+input#_mepr_product_limit_cycles_num:hover {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+span.mepr-price-box-price-loading {
+  display:none;
+}
+
+/* Clean up rule edit page */
+#submitdiv #misc-publishing-actions,
+#submitdiv #minor-publishing-actions {
+  display: none;
+}
+
+/* Clean up rule listing page */
+.view-switch, #post-query-submit {
+  display: none;
+}
+

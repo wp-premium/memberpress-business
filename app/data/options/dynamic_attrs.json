@@ -1,0 +1,47 @@
+{
+  "biz_name": {
+    "default": "",
+    "validations": []
+  },
+  "biz_address1": {
+    "default": "",
+    "validations": []
+  },
+  "biz_address2": {
+    "default": "",
+    "validations": []
+  },
+  "biz_city": {
+    "default": "",
+    "validations": []
+  },
+  "biz_state": {
+    "default": "",
+    "validations": []
+  },
+  "biz_postcode": {
+    "default": "",
+    "validations": []
+  },
+  "biz_country": {
+    "default": "",
+    "validations": []
+  },
+  "tax_calc_type": {
+    "default": "exclusive",
+    "validations": []
+  },
+  "tax_calc_location": {
+    "default": "customer",
+    "validations": []
+  },
+  "tax_default_address": {
+    "default": "none",
+    "validations": []
+  },
+  "tax_avalara_key": {
+    "default": "",
+    "validations": []
+  }
+}
+
