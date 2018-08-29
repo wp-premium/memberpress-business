@@ -19,11 +19,24 @@
         <tbody>
           <tr valign="top">
             <th scope="row">
-              <label for="<?php echo $mepr_options->attr_slug('tax_avalara_key'); ?>"><?php _e('Avalara API Key', 'memberpress'); ?></label>
+              <label for="<?php echo $mepr_options->attr_slug('tax_avalara_account_id'); ?>"><?php _e('Avalara Account ID', 'memberpress'); ?></label>
+              <?php MeprAppHelper::info_tooltip(
+                'mepr-merchant-tax-avalara-account-id',
+                __('Avalara Account ID', 'memberpress'),
+                __('You can create a free account by registering for Avalara\'s Tax Rate API at taxratesapi.avalara.com.', 'memberpress')
+              ); ?>
+            </th>
+            <td>
+              <input id="<?php echo $mepr_options->attr_slug('tax_avalara_account_id'); ?>" name="<?php echo $mepr_options->attr_slug('tax_avalara_account_id'); ?>" class="regular-text" value="<?php echo $mepr_options->attr('tax_avalara_account_id'); ?>" />
+            </td>
+          </tr>
+          <tr valign="top">
+            <th scope="row">
+              <label for="<?php echo $mepr_options->attr_slug('tax_avalara_key'); ?>"><?php _e('Avalara License Key', 'memberpress'); ?></label>
               <?php MeprAppHelper::info_tooltip(
                 'mepr-merchant-tax-avalara-key',
-                __('Avalara API Key', 'memberpress'),
-                __('You can get a free API Key by registering for Avalara\'s Tax Rate API at taxratesapi.avalara.com.', 'memberpress')
+                __('Avalara License Key', 'memberpress'),
+                __('You can get a free License Key by registering for Avalara\'s Tax Rate API at taxratesapi.avalara.com.', 'memberpress')
               ); ?>
             </th>
             <td>
@@ -35,4 +48,3 @@
     </div>
   </td>
 </tr>
-

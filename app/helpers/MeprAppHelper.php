@@ -14,19 +14,16 @@ class MeprAppHelper {
 
   public static function format_currency($number, $show_symbol = true, $free_str = true, $truncate_zeroes = false) {
     global $wp_locale;
-
-    $truncate_decimals = false;
-    $dp = $wp_locale->number_format['decimal_point'];
-    $ts = $wp_locale->number_format['thousands_sep'];
-
     $mepr_options = MeprOptions::fetch();
+    $dp = $wp_locale->number_format['decimal_point'];
 
     if((float)$number > 0.00 || !$free_str) {
+      //Do decimal and 0's handling before adding symbol
       if(MeprUtils::is_zero_decimal_currency()) {
-        $rstr = (string)number_format((float)$number, 0, $dp, $ts); //Zero decimal, means no decimals yo
+        $rstr = (string)MeprUtils::format_currency_float((float)$number, 0); //Zero decimal, means no decimals yo
       }
       else {
-        $rstr = (string)number_format((float)$number, 2, $dp, $ts);      //Get rid of trailing 0's - do this before we add the symbol to the end
+        $rstr = (string)MeprUtils::format_currency_float((float)$number, 2);
 
         if($truncate_zeroes) {
           $rstr = preg_replace('/' . preg_quote($dp) . '00$/', '', $rstr);
@@ -49,6 +46,34 @@ class MeprAppHelper {
     return $rstr;
   }
 
+  public static function auto_add_page($page_name) {
+    return wp_insert_post(array('post_title' => $page_name, 'post_type' => 'page', 'post_status' => 'publish', 'comment_status' => 'closed'));
+  }
+
+  public static function format_number($number, $show_decimals = false, $truncate_zeroes = false) {
+    global $wp_locale;
+
+    $decimal_point = $wp_locale->number_format['decimal_point'];
+    $thousands_sep = $wp_locale->number_format['thousands_sep'];
+
+    $rstr = 0;
+
+    if((float)$number > 0.00) {
+      if($show_decimals) {
+        $rstr = (string)number_format((float)$number, 2, $decimal_point, $thousands_sep);
+      }
+      else {
+        $rstr = (string)number_format((float)$number, 0, $decimal_point, $thousands_sep);
+      }
+
+      if($show_decimals && $truncate_zeroes) {
+        $rstr = preg_replace('/' . preg_quote($decimal_point) . '00$/', '', $rstr);
+      }
+    }
+
+    return $rstr;
+  }
+
   // NOTE - This should only be used in views/emails as it modifies UTC
   // timestamps to show in the users WP locale settings instead of in UTC
   public static function format_date($datetime, $default = null, $format = null) {
@@ -60,6 +85,17 @@ class MeprAppHelper {
     $offset = get_option('gmt_offset'); //Gets WP timezone offset option
 
     return date_i18n($format, ($ts + MeprUtils::hours($offset)), false); // return a translatable date in the WP locale options
+  }
+
+  //Right now - just used on the new/edit txn pages
+  public static function format_date_utc($utc_datetime, $default = null, $format = null) {
+    if(is_null($default)) { $default = __('Unknown','memberpress'); }
+    if(is_null($format)) { $format = get_option('date_format'); } //Gets WP date format option
+    if(empty($utc_datetime) or preg_match('#^0000-00-00#', $utc_datetime)) { return $default; }
+
+    $ts = strtotime($utc_datetime);
+
+    return date_i18n($format, $ts, true); // return a translatable date in the WP locale options
   }
 
   public static function page_template_dropdown($field_name, $field_value=null) {
@@ -110,6 +146,10 @@ class MeprAppHelper {
   }
 
   public static function format_price_string($obj, $price = 0.00, $show_symbol = true, $coupon_code = null, $show_prorated = true) {
+    global $wp_locale;
+
+    $user = MeprUtils::get_currentuserinfo();
+    $regex_dp = preg_quote($wp_locale->number_format['decimal_point'], '#');
     $mepr_options = MeprOptions::fetch();
     $coupon = false;
 
@@ -117,7 +157,7 @@ class MeprAppHelper {
       $coupon_code = null;
     }
     else {
-      $coupon = MeprCoupon::get_one_from_code($coupon_code);
+      $coupon = MeprCoupon::get_one_from_code($coupon_code, true);
     }
 
     if($obj instanceof MeprTransaction || $obj instanceof MeprSubscription) {
@@ -132,9 +172,9 @@ class MeprAppHelper {
 
     $tax_str = '';
 
-    if(!empty($obj->tax_rate)) {
+    if(!empty($obj->tax_rate) && $obj->tax_rate > 0.00) {
       // $tax_rate = $obj->tax_rate;
-      $tax_rate = preg_replace("#([\.,]00)([^0-9]*)$#", '$2', MeprUtils::format_float($obj->tax_rate));
+      $tax_rate = preg_replace("#([{$regex_dp}]000?)([^0-9]*)$#", '$2', MeprUtils::format_tax_percent_for_display($obj->tax_rate));
       $tax_desc = $obj->tax_desc;
       // $tax_str = ' +'.MeprUtils::format_float($tax_rate).'% '.$tax_desc;
       $tax_str = ' +'.$tax_rate.'% '.$tax_desc;
@@ -142,7 +182,7 @@ class MeprAppHelper {
 
     // Just truncate the zeros if it's an even dollar amount
     $fprice = MeprAppHelper::format_currency($price, $show_symbol);
-    $fprice = preg_replace("#([\.,]00)([^0-9]*)$#", '$2', (string)$fprice);
+    $fprice = preg_replace("#([{$regex_dp}]000?)([^0-9]*)$#", '$2', (string)$fprice);
     $fprice = $fprice . $tax_str;
 
     $period = (int)$obj->period;
@@ -168,17 +208,18 @@ class MeprAppHelper {
       $price_str = $fprice;
       if( $show_prorated && $obj instanceof MeprProduct &&
           $mepr_options->pro_rated_upgrades && $obj->is_upgrade_or_downgrade() ) {
-        $user         = MeprUtils::get_currentuserinfo();
         $group        = $obj->group();
         $lt           = false;
         $old_subscr   = $user->subscription_in_group($group->ID);
         $old_lifetime = $user->lifetime_subscription_in_group($group->ID);
 
-        if($old_subscr !== false)
+        if($old_subscr !== false) {
           $lt = $old_subscr->latest_txn();
+        }
 
-        if($old_lifetime !== false)
+        if($old_lifetime !== false) {
           $lt = $old_lifetime;
+        }
 
         //Don't show prorated if the old amount is 0.00
         if($lt === false || MeprUtils::format_float($lt->amount) > 0.00) {
@@ -190,7 +231,7 @@ class MeprAppHelper {
       if( $obj->trial ) {
         if( $obj->trial_amount > 0.00 ) {
           $trial_str = MeprAppHelper::format_currency($obj->trial_amount, $show_symbol);
-          $trial_str = preg_replace("#([\.,]00)([^0-9]*)$#", '$2', (string)$trial_str);
+          $trial_str = preg_replace("#([{$regex_dp}]000?)([^0-9]*)$#", '$2', (string)$trial_str);
         }
         else
           $trial_str = __('free', 'memberpress');
@@ -201,7 +242,7 @@ class MeprAppHelper {
             $usr = MeprUtils::get_currentuserinfo();
             $grp = $obj->group();
 
-            if( $show_prorated && $old_sub = $usr->subscription_in_group($grp->ID) ) {
+            if( $show_prorated && ($old_sub = $usr->subscription_in_group($grp->ID)) ) {
               $upgrade_str = __(' (proration)','memberpress');
             }
             else {
@@ -262,10 +303,22 @@ class MeprAppHelper {
         $expire_str = strtolower( MeprUtils::period_type_name($obj->expire_unit,$obj->expire_after) );
         $price_str .= sprintf( __( ' for %1$d %2$s', 'memberpress' ), $obj->expire_after, $expire_str );
       }
-      else if($obj->expire_type=='fixed') {
+      else if($obj->expire_type == 'fixed') {
         $expire_ts = strtotime( $obj->expire_fixed );
-        $expire_str = date( __( 'D, M j, Y', 'memberpress' ), $expire_ts );
-        $price_str .= sprintf( __( ' for access until %s', 'memberpress' ), $expire_str );
+        $now = time();
+
+        //Make sure we adjust the year if the membership is a renewable type and the user forgot to bump up the year
+        if($product->allow_renewal) {
+          while($now > $expire_ts) { //Add a year until $now < expiration date
+            $expire_ts += MeprUtils::years(1);
+          }
+        }
+
+        $expire_str = date_i18n( 'D, M j, Y', $expire_ts, true );
+
+        if(!$product->is_renewal()) { //Just hide this if it's a renewal
+          $price_str .= sprintf( __( ' for access until %s', 'memberpress' ), $expire_str );
+        }
       }
     }
 
@@ -342,5 +395,56 @@ class MeprAppHelper {
     <?php
     return ob_get_clean();
   }
-} //End class
 
+  public static function memberships_dropdown($field_name, $memberships = array(), $classes = '') {
+    $memberships = is_array($memberships) ? $memberships : array();
+    $contents = array();
+
+    $posts = MeprCptModel::all('MeprProduct');
+
+    foreach($posts as $post) {
+      $contents[$post->ID] = $post->post_title;
+    }
+
+    ?>
+      <select name="<?php echo $field_name; ?>" class="<?php echo $classes; ?>">
+      <?php
+        foreach($contents as $curr_type => $curr_label) {
+          ?><option value="<?php echo $curr_type; ?>" <?php selected(in_array($curr_type, $memberships)); ?>><?php echo $curr_label; ?>&nbsp;</option><?php
+        }
+      ?>
+      </select>
+    <?php
+  }
+
+  public static function export_table_link($action, $nonce_action, $nonce_name, $itemcount, $all=false) {
+    $params = array('action' => $action);
+
+    if($all) {
+      $params['all'] = 1;
+      $label = __('Export table as CSV (%s records)', 'memberpress');
+    }
+    else {
+      $label = __('Export all as CSV (%s records)', 'memberpress');
+    }
+
+    ?>
+      <a href="<?php
+        echo MeprUtils::admin_url(
+          'admin-ajax.php',
+          array($nonce_action, $nonce_name),
+          $params,
+          true
+        ); ?>"><?php printf($label, MeprAppHelper::format_number($itemcount)); ?></a>
+    <?php
+  }
+
+  public static function privacy_policy_page_link() {
+    $privacy_policy_page_id = get_option('wp_page_for_privacy_policy', false);
+    if($privacy_policy_page_id !== false) {
+      return get_permalink($privacy_policy_page_id);
+    }
+
+    return false;
+  }
+} //End class

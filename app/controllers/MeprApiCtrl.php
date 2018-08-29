@@ -15,12 +15,12 @@ class MeprApiCtrl extends MeprBaseCtrl
 
     $txns = $mepr_user->active_product_subscriptions('transactions');
 
-    $filename = "{$mepr_user->user_login}-" . date('Ymd');
+    $filename = "{$mepr_user->user_login}-" . gmdate('Ymd');
 
     $struct = array();
     $struct['user'] = (array)$mepr_user->rec;
     $struct['transactions'] = array();
-    $struct['timestamp'] = date('Y-m-d H:i:s');
+    $struct['timestamp'] = gmdate('Y-m-d H:i:s');
 
     foreach($txns as $txn) {
       $txn_struct = (array)$txn->rec;
@@ -121,8 +121,9 @@ class MeprApiCtrl extends MeprBaseCtrl
    */
   protected function to_xml($data, $root_node_name='memberpressData', $xml=null, $parent_node_name='') {
     // turn off compatibility mode as simple xml throws a wobbly if you don't.
-    if(ini_get('zend.ze1_compatibility_mode') == 1)
-      ini_set('zend.ze1_compatibility_mode', 0);
+    //DEPRECATED IN PHP 5.3
+    // if(ini_get('zend.ze1_compatibility_mode') == 1)
+      // ini_set('zend.ze1_compatibility_mode', 0);
 
     if(is_null($xml))
       $xml = simplexml_load_string("<?xml version='1.0' encoding='utf-8'?><{$root_node_name} />");

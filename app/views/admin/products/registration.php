@@ -17,17 +17,40 @@
       ?>
     </div>
   <?php endif; ?>
-  <div id="mepr-product-thank-you-message" class="mepr-product-adv-item">
+  <div id="mepr-product-thank-you-page" class="mepr-product-adv-item">
     <input type="checkbox" name="<?php echo MeprProduct::$thank_you_page_enabled_str; ?>" id="<?php echo MeprProduct::$thank_you_page_enabled_str; ?>" <?php checked($product->thank_you_page_enabled); ?> />
     <label for="<?php echo MeprProduct::$thank_you_page_enabled_str; ?>"><?php _e('Enable custom thank you page message', 'memberpress'); ?></label>
     <?php
-      MeprAppHelper::info_tooltip('mepr-product-custom-thank-you-page',
-                                  __('Enable Custom Thank You Page Message', 'memberpress'),
-                                  __('Enabling this option will reveal a new Compose form which you can use to provide a custom message to show on the Thank You page after a member purchases this membership.', 'memberpress'));
+      MeprAppHelper::info_tooltip('mepr-product-custom-thank-you',
+                                  __('Enable Custom Thank You', 'memberpress'),
+                                  __('Enabling this option will reveal additional options you can use to provide a custom Thank You message or page to show after a member purchases this membership.', 'memberpress'));
     ?>
 
     <div id="mepr-product-thank-you-area">
-      <?php wp_editor(stripslashes($product->thank_you_message), 'meprproductthankyoumessage'); ?>
+      <div class="mepr-product-adv-item">
+        <input type="radio" name="<?php echo MeprProduct::$thank_you_page_type_str; ?>" id="<?php echo MeprProduct::$thank_you_page_type_str; ?>_message" value="message" <?php checked(in_array($product->thank_you_page_type, array('message', ''))); ?> />
+        <label for="<?php echo MeprProduct::$thank_you_page_type_str; ?>"><?php _e('Enable custom thank you message', 'memberpress'); ?></label>
+        <?php
+          MeprAppHelper::info_tooltip('mepr-product-custom-thank-you-message',
+                                      __('Enable Custom Thank You Message', 'memberpress'),
+                                      __('Enabling this option will reveal a new Compose form which you can use to provide a custom message to show on the Thank You page after a member purchases this membership.', 'memberpress'));
+                                      ?>
+        <div id="mepr-product-thank-you-message">
+          <?php wp_editor(stripslashes($product->thank_you_message), 'meprproductthankyoumessage'); ?>
+        </div>
+      </div>
+      <div class="mepr-product-adv-item">
+        <input type="radio" name="<?php echo MeprProduct::$thank_you_page_type_str; ?>" id="<?php echo MeprProduct::$thank_you_page_type_str; ?>_page" value="page" <?php checked($product->thank_you_page_type, 'page') ?> />
+        <label for="<?php echo MeprProduct::$thank_you_page_type_str; ?>"><?php _e('Enable custom thank you page', 'memberpress'); ?></label>
+        <?php
+          MeprAppHelper::info_tooltip('mepr-product-custom-thank-you-page',
+                                      __('Enable Custom Thank You Page', 'memberpress'),
+                                      __('Enabling this option will reveal a dropdown which you can use to provide a custom Thank You page to show after a member purchases this membership.', 'memberpress'));
+        ?>
+        <div id="mepr-product-thank-you-page-id">
+          <?php MeprOptionsHelper::wp_pages_dropdown(MeprProduct::$thank_you_page_id_str, $product->thank_you_page_id, __("Thank You", 'memberpress') . " ({$product->post_title})"); ?>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -177,4 +200,3 @@
     </div>
   </div>
 </div>
-

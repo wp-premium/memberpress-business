@@ -14,8 +14,14 @@ class MeprSubscriptionsTable extends WP_List_Table
   public $_columns;
   public $_sortable;
 
-  public function __construct($screen, $columns, $lifetime=false)
-  {
+  public $_non_recurring_searchable;
+  public $_recurring_searchable;
+  public $non_recurring_db_search_cols;
+  public $recurring_db_search_cols;
+
+  public $totalitems;
+
+  public function __construct($screen, $columns, $lifetime=false) {
     if ( is_string( $screen ) ) {
       $screen = convert_to_screen( $screen );
     }
@@ -34,6 +40,34 @@ class MeprSubscriptionsTable extends WP_List_Table
     else {
       $label = 'wp_list_mepr_subscription';
     }
+
+    $this->_recurring_searchable = array(
+      'subscription' => __('Subscription', 'memberpress'),
+      'username' => __('Username', 'memberpress'),
+      'email' => __('User Email', 'memberpress'),
+      'id' => __('Id', 'memberpress'),
+    );
+
+    $this->_non_recurring_searchable = array(
+      'subscription' => __('Transaction', 'memberpress'),
+      'username' => __('Username', 'memberpress'),
+      'email' => __('User Email', 'memberpress'),
+      'id' => __('Id', 'memberpress'),
+    );
+
+    $this->recurring_db_search_cols = array(
+      'subscription' => 'sub.subscr_id',
+      'username' => 'u.user_login',
+      'email' => 'u.user_email',
+      'id' => 'u.ID',
+    );
+
+    $this->non_recurring_db_search_cols = array(
+      'subscription' => 'txn.trans_num',
+      'username' => 'u.user_login',
+      'email' => 'u.user_email',
+      'id' => 'u.ID',
+    );
 
     parent::__construct(
       array(
@@ -58,13 +92,21 @@ class MeprSubscriptionsTable extends WP_List_Table
   public function extra_tablenav($which)
   {
     if($which == "top") {
-      $member = (isset($_GET['member']) && !empty($_GET['member']))?'&member='.stripslashes($_GET['member']):'';
-      $search = (isset($_GET['search']) && !empty($_GET['search']))?'&search='.stripslashes($_GET['search']):'';
+      $member = (isset($_GET['member']) && !empty($_GET['member']))?'&member='.urlencode(stripslashes($_GET['member'])):'';
+      $search = (isset($_GET['search']) && !empty($_GET['search']))?'&search='.urlencode(stripslashes($_GET['search'])):'';
+      $search_field = (isset($_GET['search-field']) && !empty($_GET['search-field']))?'&search-field='.stripslashes($_GET['search-field']):'';
       $perpage = (isset($_GET['perpage']) && !empty($_GET['perpage']))?'&perpage='.stripslashes($_GET['perpage']):'';
 
+      if($this->lifetime) {
+        $search_cols = $this->_non_recurring_searchable;
+      }
+      else {
+        $search_cols = $this->_recurring_searchable;
+      }
+
       $table = $this;
-      MeprView::render("/admin/subscriptions/tabs", get_defined_vars());
-      MeprView::render("/admin/table_controls", get_defined_vars());
+      MeprView::render("/admin/subscriptions/tabs", compact('table','member','search','search_field','perpage','search_cols'));
+      MeprView::render("/admin/table_controls", compact('search_cols'));
     }
 
     if($which == "bottom") {
@@ -75,7 +117,9 @@ class MeprSubscriptionsTable extends WP_List_Table
         $action = "mepr_subscriptions";
       }
 
-      MeprView::render("/admin/table_footer", get_defined_vars());
+      $totalitems = $this->totalitems;
+      $itemcount = count($this->items);
+      MeprView::render("/admin/table_footer", compact('action','totalitems','itemcount'));
     }
   }
 
@@ -131,9 +175,12 @@ class MeprSubscriptionsTable extends WP_List_Table
     $order   = !empty($_GET["order"])   ? esc_sql($_GET["order"])   : 'DESC';
     $paged   = !empty($_GET["paged"])   ? esc_sql($_GET["paged"])   : 1;
     $search  = !empty($_GET["search"])  ? esc_sql($_GET["search"])  : '';
+    $search_field = !empty($_GET["search-field"]) ? esc_sql($_GET["search-field"])  : 'any';
+    $non_recurring_search_field = isset($this->non_recurring_db_search_cols[$search_field]) ? $this->non_recurring_db_search_cols[$search_field] : 'any';
+    $recurring_search_field = isset($this->recurring_db_search_cols[$search_field]) ? $this->recurring_db_search_cols[$search_field] : 'any';
 
-    $lifetime_table = MeprSubscription::lifetime_subscr_table($orderby, $order, $paged, $search, $perpage, (!$this->lifetime));
-    $periodic_table = MeprSubscription::subscr_table($orderby, $order, $paged, $search, $perpage, ($this->lifetime));
+    $lifetime_table = MeprSubscription::lifetime_subscr_table($orderby, $order, $paged, $search, $non_recurring_search_field, $perpage, (!$this->lifetime));
+    $periodic_table = MeprSubscription::subscr_table($orderby, $order, $paged, $search, $recurring_search_field, $perpage, ($this->lifetime));
 
     $list_table = $this->lifetime ? $lifetime_table : $periodic_table;
 
@@ -162,6 +209,8 @@ class MeprSubscriptionsTable extends WP_List_Table
         $this->get_sortable_columns()
       );
     }
+
+    $this->totalitems = $totalitems;
 
     /* -- Fetch the items -- */
     $this->items = $list_table['results'];

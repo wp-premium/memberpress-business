@@ -1,15 +1,15 @@
 .icon32 {
   float: right;
   display: inline-block;
-  background:url('../images/memberpress-32.png') !important;
-  width: 267px !important;
+  background:url('../images/memberpress-logo.svg') !important;
+  width: 200px !important;
   height: 32px !important;
 }
 
 @media all and (-webkit-min-device-pixel-ratio: 1.5) {
   .icon32 {
-    background-image: url('../images/memberpress-32@2x.png') !important;
-    background-size: 267px 32px !important;
+    background-image: url('../images/memberpress-logo.svg') !important;
+    background-size: 200px 32px !important;
   }
 }
 
@@ -53,6 +53,12 @@ span.who_have_purchased {
 
 div#who_can_purchase_hidden_row {
   display:none;
+}
+
+div#cannot_purchase_message label {
+  display:block;
+  margin-top:10px;
+  margin-bottom:8px;
 }
 
 /* Pricing Page Meta Box */
@@ -162,6 +168,11 @@ div#mepr-shortcode-product-signup-form-area {
 div#mepr-product-thank-you-area {
   margin-top:5px;
   padding:15px;
+}
+
+div#mepr-product-thank-you-page-id,
+div#mepr-product-thank-you-message {
+  display: none;
 }
 
 #mepr-product-manually-place-form,
@@ -284,3 +295,6 @@ span.mepr-price-box-price-loading {
   display: none;
 }
 
+#mepr-custom-pricing-display {
+  display: none;
+}

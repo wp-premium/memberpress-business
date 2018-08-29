@@ -2,7 +2,7 @@
 if(!defined('ABSPATH')) {die('You are not allowed to call this page directly.');}
 
 class MeprAddonUpdates {
-  public $memberpress_active, $slug, $main_file, $options_key, $title, $desc;
+  public $memberpress_active, $slug, $main_file, $options_key, $title, $desc, $path;
 
   public function __construct($slug, $main_file, $options_key='', $title='', $desc='') {
     $this->slug = $slug;
@@ -10,8 +10,11 @@ class MeprAddonUpdates {
     $this->options_key = $options_key;
     $this->title = $title;
     $this->desc = $desc;
+    $this->path = WP_PLUGIN_DIR.'/'.$slug;
 
     $priority = mt_rand(900000,999999);
+
+    $this->load_language();
 
     add_filter('pre_set_site_transient_update_plugins', array( $this, 'queue_update' ));
 
@@ -32,9 +35,18 @@ class MeprAddonUpdates {
       $args = array();
       if( defined( "MEMBERPRESS_EDGE" ) && MEMBERPRESS_EDGE ) { $args['edge'] = 'true'; }
 
-      $version_info = $this->send_mothership_request( "/versions/latest/".$this->slug, $args );
-      $curr_version = $version_info['version'];
-      $download_url = '';
+      try {
+        $version_info = $this->send_mothership_request( "/versions/latest/".$this->slug, $args );
+        $curr_version = $version_info['version'];
+        $download_url = '';
+      }
+      catch(Exception $e) {
+        if(isset($transient->response[$this->main_file])) {
+          unset($transient->response[$this->main_file]);
+        }
+
+        return $transient;
+      }
     }
     else {
       try {
@@ -145,6 +157,30 @@ class MeprAddonUpdates {
     }
 
     return false;
+  }
+
+  public function load_language() {
+    $paths = array();
+    $paths[] = str_replace(WP_PLUGIN_DIR, '', $this->path.'/i18n');
+
+    //Have to use WP_PLUGIN_DIR because load_plugin_textdomain doesn't accept abs paths
+    if(!file_exists(WP_PLUGIN_DIR . '/' . 'mepr-i18n')) {
+      @mkdir(WP_PLUGIN_DIR . '/' . 'mepr-i18n');
+
+      if(file_exists(WP_PLUGIN_DIR . '/' . 'mepr-i18n')) {
+        $paths[] = '/mepr-i18n';
+      }
+    }
+    else {
+      $paths[] = '/mepr-i18n';
+    }
+
+    // MeprHooks isn't going to always be defined here so just use the normal apply_filters
+    $paths = apply_filters("mepr_{$this->slug}_textdomain_paths", $paths);
+
+    foreach($paths as $path) {
+      load_plugin_textdomain($this->slug, false, $path);
+    }
   }
 } //End class
 

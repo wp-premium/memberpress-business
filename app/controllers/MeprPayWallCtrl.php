@@ -17,17 +17,28 @@ class MeprPayWallCtrl extends MeprBaseCtrl {
     add_action('template_redirect', 'MeprPayWallCtrl::paywall_update_cookie');
   }
 
+  //Do not allow certain posts to be freely viewed
   public static function is_excluded($post) {
-    $excluded_category_slugs = array();
-    $excluded_wp_posts       = array();
+    $excluded                 = false;
+    $excluded_category_slugs  = MeprHooks::apply_filters('mepr-paywall-excluded-category-slugs', array(), $post);
+    $excluded_tag_slugs       = MeprHooks::apply_filters('mepr-paywall-excluded-tag-slugs', array(), $post);
+    $excluded_wp_posts        = MeprHooks::apply_filters('mepr-paywall-excluded-posts', array(), $post);
 
-    if(!empty($excluded_category_slugs) && in_category($excluded_category_slugs, $post))
-      return true;
+    if(!empty($excluded_category_slugs) && in_category($excluded_category_slugs, $post)) {
+      $excluded = true;
+    }
 
-    if(!empty($excluded_wp_posts) && in_array($post->ID, $excluded_wp_posts))
-      return true;
+    if(!empty($excluded_tag_slugs) && has_tag($excluded_tag_slugs, $post)) {
+      $excluded = true;
+    }
 
-    return false;
+    if(!empty($excluded_wp_posts) && in_array($post->ID, $excluded_wp_posts)) {
+      $excluded = true;
+    }
+
+    $excluded = MeprHooks::apply_filters('mepr-paywall-is-excluded', $excluded, $post);
+
+    return $excluded;
   }
 
   //Tell search engines NOT to cache this page
@@ -62,8 +73,8 @@ class MeprPayWallCtrl extends MeprBaseCtrl {
   public static function paywall_update_cookie() {
     $post = MeprUtils::get_current_post();
 
-    //Do nothing if the member is logged in or this is excluded from the PayWall
-    if(MeprUtils::is_user_logged_in() || ($post !== false && self::is_excluded($post)))
+    //Do nothing if the member is logged in or this is excluded from the PayWall or this is an archive view
+    if(MeprUtils::is_user_logged_in() || ($post !== false && self::is_excluded($post)) || !is_singular())
       return;
 
     $mepr_options = MeprOptions::fetch();
@@ -87,20 +98,20 @@ class MeprPayWallCtrl extends MeprBaseCtrl {
   }
 
   public static function paywall_allow_through_redirection($protect, $uri, $delim) {
-    if(self::paywall_allow_through())
+    if(self::paywall_allow_through('uri'))
       return false; //Need to return false to allow them through the blocks
 
     return $protect;
   }
 
-  public static function paywall_allow_through() {
+  public static function paywall_allow_through($type = 'content') {
     $post = MeprUtils::get_current_post();
 
     //Do nothing if the member is logged in, or if this is a bot (bots might be allowed through later down the chain)
     if(MeprUtils::is_user_logged_in() || self::verify_bot())
       return false;
 
-    //check if Post is excluded from the PayWall
+    //check if Post is excluded from the PayWall - if so do NOT allow them through
     if($post !== false && self::is_excluded($post))
       return false;
 
@@ -109,8 +120,14 @@ class MeprPayWallCtrl extends MeprBaseCtrl {
     if($mepr_options->paywall_enabled && $mepr_options->paywall_num_free_views > 0) {
       $num_views = (isset($_COOKIE[self::$cookie_name]) && !empty($_COOKIE[self::$cookie_name]))?$_COOKIE[self::$cookie_name]:0;
 
-      if($num_views !== 0)
+      if($num_views !== 0) {
         $num_views = base64_decode($num_views);
+      }
+
+      //There's a race condition happening here, so we need to add one to the uri's
+      if($type == 'uri') {
+        $num_views += 1;
+      }
 
       if($num_views <= $mepr_options->paywall_num_free_views)
         return true;
@@ -147,6 +164,9 @@ class MeprPayWallCtrl extends MeprBaseCtrl {
   }
 
   public static function verify_bot() {
+    //If the user is logged in, then bail
+    if(MeprUtils::is_user_logged_in()) { return false; }
+
     $agent = 'no-agent-found';
     if(isset($_SERVER['HTTP_USER_AGENT']) && !empty($_SERVER['HTTP_USER_AGENT'])) {
       $agent = strtolower($_SERVER['HTTP_USER_AGENT']);

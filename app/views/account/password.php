@@ -6,15 +6,17 @@
   <form action="" class="mepr-newpassword-form mepr-form" method="post" novalidate>
     <input type="hidden" name="plugin" value="mepr" />
     <input type="hidden" name="action" value="updatepassword" />
+    <?php wp_nonce_field( 'update_password', 'mepr_account_nonce' ); ?>
 
     <div class="mp-form-row mepr_new_password">
       <label for="mepr-new-password"><?php _ex('New Password', 'ui', 'memberpress'); ?></label>
-      <input type="password" name="mepr-new-password" class="mepr-form-input" required />
+      <input type="password" name="mepr-new-password" class="mepr-form-input mepr-new-password" required />
     </div>
     <div class="mp-form-row mepr_confirm_password">
       <label for="mepr-confirm-password"><?php _ex('Confirm New Password', 'ui', 'memberpress'); ?></label>
-      <input type="password" name="mepr-confirm-password" class="mepr-form-input" required />
+      <input type="password" name="mepr-confirm-password" class="mepr-form-input mepr-new-password-confirm" required />
     </div>
+    <?php MeprHooks::do_action('mepr-account-after-password-fields', $mepr_current_user); ?>
 
     <div class="mepr_spacer">&nbsp;</div>
 

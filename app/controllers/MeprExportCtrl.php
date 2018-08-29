@@ -5,6 +5,85 @@ class MeprExportCtrl extends MeprBaseCtrl {
   public function load_hooks() {
     add_action('init', 'MeprExportCtrl::export_users_csv');
     add_action('init', 'MeprExportCtrl::export_inactive_users_csv');
+    add_filter('wp_privacy_personal_data_exporters', array($this, 'register_pii_exporter'), 10);
+  }
+
+  /**
+  * Registers callback for PII exporter
+  * @param array $exporters
+  * @return array $exporters
+  */
+  public static function register_pii_exporter($exporters) {
+    $exporters[MEPR_PLUGIN_SLUG] = array(
+      'exporter_friendly_name' => MEPR_PLUGIN_NAME,
+      'callback' => array('MeprExportCtrl', 'export_pii'),
+    );
+
+    return $exporters;
+  }
+
+  /**
+  * Gathers PII data stored by MemberPress for export
+  * @param string $email Email address of requested user to export
+  * @return array ['data' => array, 'done' => bool]
+  */
+  public static function export_pii($email, $page = 1) {
+    $user = get_user_by('email', $email);
+    $mepr_user = new MeprUser($user->ID);
+    $mepr_data = array();
+
+    // Export address fields
+    if($mepr_user->address_is_set()) {
+      $address = $mepr_user->formatted_address();
+      $mepr_data[] = array(
+        'group_id' => MEPR_PLUGIN_NAME,
+        'group_label' => __('Membership Data', 'memberpress'),
+        'item_id' => 'mepr-user-data',
+        'data' => array(
+          array(
+            'name' => __('Address', 'memberpress'),
+            'value' => $address,
+          ),
+        ),
+      );
+    }
+
+    // Export VAT data
+    $vat_number = get_user_meta($user->ID, 'mepr_vat_number', true);
+    if(!empty($vat_number)) {
+      $mepr_data[] = array(
+        'group_id' => MEPR_PLUGIN_NAME,
+        'group_label' => __('Membership Data', 'memberpress'),
+        'item_id' => 'mepr-user-data',
+        'data' => array(
+          array(
+            'name' => __('VAT Number', 'memberpress'),
+            'value' => $vat_number,
+          ),
+        ),
+      );
+    }
+
+    // Export Geo located country
+    $geo_country = get_user_meta($user->ID, 'mepr-geo-country', true);
+    if(!empty($geo_country)) {
+      $mepr_data[] = array(
+        'group_id' => MEPR_PLUGIN_NAME,
+        'group_label' => __('Membership Data', 'memberpress'),
+        'item_id' => 'mepr-user-data',
+        'data' => array(
+          array(
+            'name' => __('Geo Location Country', 'memberpress'),
+            'value' => $geo_country,
+          ),
+        ),
+      );
+    }
+
+    return array(
+      'data' => $mepr_data,
+      'done' => true,
+    );
   }
 
   // This will need a major overhaul eventually, but we needed a quick fix for some clients
@@ -95,8 +174,8 @@ class MeprExportCtrl extends MeprBaseCtrl {
     }
 
     if(isset($_GET['page']) && $_GET['page'] == 'memberpress-options' && isset($_GET['mepr-export-inactive-users-csv'])) {
-      $mysql_now = $wpdb->prepare('%s',MeprUtils::mysql_now());
-      $mysql_lifetime = $wpdb->prepare('%s',MeprUtils::mysql_lifetime());
+      $db_now = $wpdb->prepare('%s',MeprUtils::db_now());
+      $db_lifetime = $wpdb->prepare('%s',MeprUtils::db_lifetime());
       $q = "SELECT u.ID AS user_ID, u.user_login AS username, u.user_email AS email, f.meta_value AS first_name, l.meta_value AS last_name, a1.meta_value AS address1, a2.meta_value AS address2, c.meta_value AS city, s.meta_value AS state, z.meta_value AS zip, u.user_registered AS start_date, t.expires_at AS end_date, p.post_title AS membership, t.gateway, cp.post_title AS coupon
               FROM {$wpdb->users} AS u
                 LEFT JOIN {$wpdb->usermeta} AS f
@@ -117,9 +196,9 @@ class MeprExportCtrl extends MeprBaseCtrl {
                               FROM {$mepr_db->transactions}
                               WHERE user_id NOT IN (SELECT user_id
                                                       FROM {$mepr_db->transactions}
-                                                      WHERE (expires_at >= {$mysql_now}
+                                                      WHERE (expires_at >= {$db_now}
                                                              OR expires_at IS NULL
-                                                             OR expires_at = {$mysql_lifetime})
+                                                             OR expires_at = {$db_lifetime})
                                                         AND status IN ('complete', 'confirmed')
                                                     GROUP BY user_id)
                             GROUP BY user_id) AS t ON u.ID = t.user_id

@@ -45,12 +45,18 @@ class MeprSubscriptionsWidget extends WP_Widget {
         echo '<li class="mepr-subscriptions-widget-row mepr-widget-error">'.$member_no_subs_msg.'</li>';
       }
       else {
-        foreach($subs as $s) {
-          if($show_link && !empty($s->access_url)) {
-            echo '<li class="mepr-subscriptions-widget-row mepr-widget-link"><a href="'.stripslashes($s->access_url).'">'.$s->post_title.'</a></li>';
-          }
-          else {
-            echo '<li class="mepr-subscriptions-widget-row mepr-widget-text">'.$s->post_title.'</li>';
+        $prev_dups = array();
+
+        foreach($subs as $prd) {
+          if(empty($prev_dups) || !in_array($prd->ID, $prev_dups, false)) {
+            $prev_dups[] = $prd->ID;
+
+            if($show_link && !empty($prd->access_url)) {
+              echo '<li class="mepr-subscriptions-widget-row mepr-widget-link"><a href="'.stripslashes($prd->access_url).'">'.$prd->post_title.'</a></li>';
+            }
+            else {
+              echo '<li class="mepr-subscriptions-widget-row mepr-widget-text">'.$prd->post_title.'</li>';
+            }
           }
         }
       }

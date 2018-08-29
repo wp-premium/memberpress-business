@@ -44,12 +44,17 @@ class MeprTaxesCtrl extends MeprBaseCtrl {
         'State Code'      => 'tax_state',
         'postcodes'       => 'postcodes',
         'Postcodes'       => 'postcodes',
+        'postcode'        => 'postcodes',
+        'Postcode'        => 'postcodes',
         'zip/postcodes'   => 'postcodes',
         'ZIP/Postcodes'   => 'postcodes',
+        'zip/postcode'    => 'postcodes',
+        'ZIP/Postcode'    => 'postcodes',
         'city'            => 'cities',
         'City'            => 'cities',
         'rate'            => 'tax_rate',
         'Rate'            => 'tax_rate',
+        'Rate %'          => 'tax_rate',
         'tax name'        => 'tax_desc',
         'Tax Name'        => 'tax_desc',
         'Tax Description' => 'tax_desc',
@@ -87,6 +92,8 @@ class MeprTaxesCtrl extends MeprBaseCtrl {
   }
 
   public function export_tax_rates() {
+    check_ajax_referer('export_tax_rates', 'mepr_taxes_nonce');
+
     $tax_rates = MeprTaxRate::get_all(';',ARRAY_A);
 
     if(!empty($tax_rates) && is_array($tax_rates)) {
@@ -102,6 +109,8 @@ class MeprTaxesCtrl extends MeprBaseCtrl {
   }
 
   public function remove_tax_rate() {
+    check_ajax_referer('mepr_taxes', 'tax_nonce');
+
     if(!MeprUtils::is_mepr_admin()) {
       header('HTTP/1.0 403 Forbidden');
       exit;

@@ -44,7 +44,8 @@ jQuery(document).ready(function($) {
 
   function show_integration_form() {
     var data = {
-      action: 'mepr_gateway_form'
+      action: 'mepr_gateway_form',
+      option_nonce: MeprOptionData.option_nonce
     };
     $.post(ajaxurl, data, function(response) {
       if( response.error === undefined ) {
@@ -71,6 +72,7 @@ jQuery(document).ready(function($) {
     var gateway = $(this).val();
     var data = {
       action: 'mepr_gateway_form',
+      option_nonce: MeprOptionData.option_nonce,
       g: gateway
     };
     $.post(ajaxurl, data, function(response) {
@@ -80,6 +82,8 @@ jQuery(document).ready(function($) {
         if( gateway === 'MeprStripeGateway' ) {
           $('#mepr-stripe-live-keys-'+response.id).show();
         }
+
+        mepr_toggle_boxes();
       }
       else {
         alert('Error');
@@ -123,6 +127,7 @@ jQuery(document).ready(function($) {
               <select name="mepr-custom-fields[' + random_id + '][type]" class="mepr-custom-fields-select" data-value="' + random_id + '"> \
                 <option value="text">' + MeprOptions.textOption + '</option> \
                 <option value="email">' + MeprOptions.emailOption + '</option> \
+                <option value="url">' + MeprOptions.urlOption + '</option> \
                 <option value="date">' + MeprOptions.dateOption + '</option> \
                 <option value="textarea">' + MeprOptions.textareaOption + '</option> \
                 <option value="checkbox">' + MeprOptions.checkboxOption + '</option> \
@@ -138,7 +143,10 @@ jQuery(document).ready(function($) {
               <input type="checkbox" name="mepr-custom-fields[' + random_id + '][signup]" id="mepr-custom-fields-signup-' + random_id + '" /> \
               <label for="mepr-custom-fields-signup-' + random_id + '">' + MeprOptions.signupLabel + '</label> \
                \
-              &nbsp;&nbsp;&nbsp;<input type="checkbox" name="mepr-custom-fields[' + random_id + '][required]" id="mepr-custom-fields-required-' + random_id + '" /> \
+              <input type="checkbox" name="mepr-custom-fields[' + random_id + '][show_in_account]" id="mepr-custom-fields-account-' + random_id + '" checked/> \
+              <label for="mepr-custom-fields-account-' + random_id + '">' + MeprOptions.accountLabel + '</label> \
+               \
+              <input type="checkbox" name="mepr-custom-fields[' + random_id + '][required]" id="mepr-custom-fields-required-' + random_id + '" /> \
               <label for="mepr-custom-fields-required-' + random_id + '">' + MeprOptions.requiredLabel + '</label> \
               <input type="hidden" name="mepr-custom-fields-index[]" value="' + random_id + '" /> \
                \
@@ -221,6 +229,16 @@ jQuery(document).ready(function($) {
   }
   $('#mepr-require-tos').click(function() {
     $('div#mepr_tos_hidden').slideToggle('fast');
+  });
+
+  //Privacy Policy JS stuff
+  if($('#mepr-require-privacy-policy').is(":checked")) {
+    $('div#mepr_privacy_hidden').show();
+  } else {
+    $('div#mepr_privacy_hidden').hide();
+  }
+  $('#mepr-require-privacy-policy').click(function() {
+    $('div#mepr_privacy_hidden').slideToggle('fast');
   });
 
   //Unauthorized stuff
@@ -336,7 +354,12 @@ jQuery(document).ready(function($) {
     e.preventDefault();
     if(confirm(MeprOptions.taxRateRemoveStr)) {
       var id = $(this).data('id');
-      $.post(ajaxurl, {action:'mepr_remove_tax_rate', id:id})
+      var ajax_data = {
+        id: id,
+        action: 'mepr_remove_tax_rate',
+        tax_nonce: MeprOptionData.tax_nonce
+      }
+      $.post(ajaxurl, ajax_data)
         .done(function(data, stat) {
           var msg = JSON.parse(data);
           alert(msg.message);
@@ -354,4 +377,3 @@ jQuery(document).ready(function($) {
   });
 
 });
-

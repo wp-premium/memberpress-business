@@ -21,6 +21,110 @@ class MeprRulesHelper
     <?php
   }
 
+  public static function access_row($access_condition=null, $index=0) {
+    echo self::access_row_string($access_condition,$index);
+  }
+
+  public static function access_row_string($access_condition=null,$index=0) {
+    return MeprView::get_string('/admin/rules/access_row', compact('access_condition','index'));
+  }
+
+  //Returns Access Rule Types dropdown
+  public static function access_types_dropdown($selected='', $onchange='mepr_show_access_options(this)') {
+    $access_types = MeprRule::mepr_access_types();
+    ?>
+      <select name="mepr_access_row[type][]" class="mepr-rule-access-type-input" onchange="<?php echo $onchange; ?>" data-validation="required" data-validation-error-msg="<?php _e('Rule Type cannot be blank', 'memberpress'); ?>">
+        <option value=""><?php _e('- Select Type -', 'memberpress'); ?></option>
+        <?php foreach ($access_types as $type): ?>
+          <option value="<?php echo $type['value']; ?>" <?php echo $selected==$type['value'] ? 'selected' : ''; ?>>
+            <?php echo $type['label']; ?>
+          </option>
+        <?php endforeach; ?>
+      </select>
+    <?php
+  }
+
+  public static function access_types_dropdown_string($selected='', $onchange='mepr_show_access_options(this)') {
+    ob_start();
+    self::access_types_dropdown($selected,$onchange);
+    return ob_get_clean();
+  }
+
+  //Returns Access Rule Operators dropdown
+  public static function access_operators_dropdown($type='',$selected='') {
+    switch($type) {
+      case 'membership':
+      case 'member':
+        $access_operators = MeprRule::mepr_access_operators();
+
+        if(count($access_operators) > 1) {
+          ?>
+            <select name="mepr_access_row[operator][]" class="mepr-rule-access-operator-input">
+              <?php foreach ($access_operators as $operator): ?>
+                <option value="<?php echo $operator['value']; ?>" <?php selected($selected,$operator['value']); ?>>
+                  <?php echo $operator['label']; ?>
+                </option>
+              <?php endforeach; ?>
+            </select>
+          <?php
+        }
+        else if(count($access_operators) == 1) {
+          $operator = $access_operators[0];
+
+          ?>
+            <div class="mepr-rule-access-operator-input">
+              <input type="hidden" name="mepr_access_row[operator][]" value="<?php echo $operator['value']; ?>" />
+              <span><strong><?php echo strtolower($operator['label']); ?></strong></span>
+            </div>
+          <?php
+        }
+
+        break;
+      default:
+        ?><span class="mepr-rule-access-operator-input">&nbsp;</span><?php
+    }
+  }
+
+  public static function access_operators_dropdown_string($type='',$selected='') {
+    ob_start();
+    self::access_operators_dropdown($type,$selected);
+    return ob_get_clean();
+  }
+
+  /**
+    * Returns Access Rule Conditions for selected type
+    * Returns Membership dropdown or Autocomplete Member text field
+    */
+  public static function access_conditions_dropdown($type='', $selected='') {
+    switch($type) {
+      case 'membership':
+        MeprAppHelper::memberships_dropdown("mepr_access_row[condition][]", array($selected), 'mepr-rule-access-condition-input');
+        break;
+      case 'member':
+        ?>
+          <input
+            type="text"
+            name="mepr_access_row[condition][]"
+            class="mepr_suggest_user mepr-rule-access-condition-input"
+            value="<?php echo $selected; ?>"
+            placeholder="<?php _e('Begin Typing Name', 'memberpress') ?>"
+            data-validation="length"
+            data-validation-error-msg="<?php _e('Member Name must be between 1-100 characters', 'memberpress'); ?>"
+            data-validation-length="1-100"
+          ></input>
+        <?php
+        break;
+      default:
+        ?><span class="mepr-rule-access-condition-input">&nbsp;</span><?php
+    }
+  }
+
+  public static function access_conditions_dropdown_string($type='', $selected='') {
+    ob_start();
+    self::access_conditions_dropdown($type,$selected);
+    return ob_get_clean();
+  }
+
   public static function get_page_title($type, $content)
   {
     $contents = MeprRule::get_contents_array($type);
@@ -106,7 +210,7 @@ class MeprRulesHelper
   {
     $contents = array();
 
-    $post_contents = get_posts(array('numberposts' => -1, 'post_type' => 'memberpressproduct', 'post_status' => 'publish'));
+    $post_contents = MeprCptModel::all('MeprProduct');
 
     foreach($post_contents as $post)
       $contents[$post->ID] = $post->post_title;
@@ -154,7 +258,7 @@ class MeprRulesHelper
 
   public static function drip_expires_after_dropdown($rule, $type)
   {
-    $products = get_posts(array('post_type' => MeprProduct::$cpt, 'post_status' => 'publish', 'numberposts' => -1));
+    $products = MeprCptModel::all('MeprProduct');
     ?>
     <select name="<?php echo $type; ?>" id="<?php echo $type; ?>">
       <option value="registers" <?php selected((($type == MeprRule::$drip_after_str && $rule->drip_after == 'registers') || ($type == MeprRule::$expires_after_str && $rule->expires_after == 'registers'))); ?>><?php _e('member registers', 'memberpress'); ?></option>

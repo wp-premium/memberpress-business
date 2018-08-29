@@ -44,7 +44,7 @@ div#mepr-account-nav {
 /* NEW Responsive Tables */
 .mp_wrapper table.mepr-account-table {
   border:1px solid #ccc;
-  width:98% !important;
+  width:100% !important;
   margin:0;
   padding:0;
   border-collapse:collapse;
@@ -70,7 +70,7 @@ div#mepr-account-nav {
 }
 
 .mp_wrapper table.mepr-account-table tr.mepr-alt-row {
-  background:#eee;
+  background:#f9f9f9;
 }
 
 @media screen and (max-width: 600px) {

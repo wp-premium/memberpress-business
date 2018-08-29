@@ -74,7 +74,7 @@ class MeprReports {
     $andyear = ($year)?" AND YEAR(created_at) = {$year}":"";
     $andproduct = (!isset($product) || $product == "all")?"":" AND product_id = {$product}";
 
-    $q = "SELECT SUM(amount)
+    $q = "SELECT (SUM(amount)+SUM(tax_amount))
             FROM {$mepr_db->transactions}
             WHERE status = %s
               AND txn_type = %s
@@ -148,10 +148,10 @@ class MeprReports {
 
     for($i = 6; $i >= 0; $i--) {
       $ts = $time - MeprUtils::days($i);
-      $date = date('M j', $ts);
-      $year = date('Y', $ts);
-      $month = date('n', $ts);
-      $day = date('j', $ts);
+      $date = gmdate('M j', $ts);
+      $year = gmdate('Y', $ts);
+      $month = gmdate('n', $ts);
+      $day = gmdate('j', $ts);
       $results[$i] = $wpdb->get_row($wpdb->prepare($q, $date, $year, $month, $day, $year, $month, $day, $year, $month, $day, $year, $month, $day));
     }
 
@@ -183,7 +183,7 @@ class MeprReports {
     $mepr_db = new MeprDb();
 
     $results = array();
-    $days_in_month = date('t', mktime(0, 0, 0, $month, 1, $year));
+    $days_in_month = gmdate('t', mktime(0, 0, 0, $month, 1, $year));
     $andproduct = ($product == "all")?"":" AND product_id = {$product}";
     $where = MeprUtils::build_where_clause($q);
 
@@ -334,7 +334,7 @@ class MeprReports {
             FROM {$mepr_db->transactions}
             WHERE txn_type = '".MeprTransaction::$payment_str."'
               AND created_at IS NOT NULL
-              AND created_at <> '".MeprUtils::mysql_lifetime()."'
+              AND created_at <> '".MeprUtils::db_lifetime()."'
           ORDER BY created_at
           LIMIT 1";
 
@@ -343,7 +343,7 @@ class MeprReports {
     if($year)
       return $year;
 
-    return date('Y');
+    return gmdate('Y');
   }
 
   public static function get_last_year()
@@ -362,7 +362,7 @@ class MeprReports {
 
     if($year) { return $year; }
 
-    return date('Y');
+    return gmdate('Y');
   }
 
   public static function get_total_members_count() {
@@ -380,6 +380,15 @@ class MeprReports {
     return $wpdb->get_var( $query );
   }
 
+  public static function get_total_wp_users_count() {
+    global $wpdb;
+    $mepr_db = new MeprDb();
+
+    $query = "SELECT COUNT(ID) FROM {$wpdb->users}";
+
+    return $wpdb->get_var($query);
+  }
+
   public static function get_active_members_count() {
     global $wpdb;
     $mepr_db = new MeprDb();
@@ -395,8 +404,8 @@ class MeprReports {
 
     $query = $wpdb->prepare(
       $query,
-      MeprUtils::mysql_now(),
-      MeprUtils::mysql_lifetime(),
+      MeprUtils::db_now(),
+      MeprUtils::db_lifetime(),
       MeprTransaction::$complete_str,
       MeprTransaction::$confirmed_str
     );
@@ -411,23 +420,23 @@ class MeprReports {
     $query = "
       SELECT COUNT(u.ID)
         FROM {$wpdb->users} AS u
-       WHERE u.ID NOT IN
-             (SELECT tr.user_id
-                FROM {$mepr_db->transactions} AS tr
-               WHERE (tr.expires_at >= %s OR tr.expires_at IS NULL OR tr.expires_at = %s)
-                 AND tr.status IN (%s, %s)
-             )
-         AND 0 <
-             (SELECT COUNT(tr2.user_id)
-                FROM {$mepr_db->transactions} AS tr2
-               WHERE tr2.user_id=u.ID
-             )
+        WHERE u.ID NOT IN
+          (SELECT tr.user_id
+            FROM {$mepr_db->transactions} AS tr
+            WHERE (tr.expires_at >= %s OR tr.expires_at IS NULL OR tr.expires_at = %s)
+              AND tr.status IN (%s, %s)
+          )
+          AND 0 <
+            (SELECT COUNT(tr2.user_id)
+              FROM {$mepr_db->transactions} AS tr2
+              WHERE tr2.user_id=u.ID
+            )
     ";
 
     $query = $wpdb->prepare(
       $query,
-      MeprUtils::mysql_now(),
-      MeprUtils::mysql_lifetime(),
+      MeprUtils::db_now(),
+      MeprUtils::db_lifetime(),
       MeprTransaction::$complete_str,
       MeprTransaction::$confirmed_str
     );
@@ -465,8 +474,8 @@ class MeprReports {
       $query,
       MeprTransaction::$complete_str,
       MeprTransaction::$confirmed_str,
-      MeprUtils::mysql_lifetime(),
-      MeprUtils::mysql_now()
+      MeprUtils::db_lifetime(),
+      MeprUtils::db_now()
     );
 
     return $wpdb->get_var( $query );
@@ -477,14 +486,15 @@ class MeprReports {
     $mepr_db = new MeprDb();
 
     $query = "SELECT AVG(lv) AS alv " .
-               "FROM ( SELECT (SUM(t.amount)+SUM(t.tax_amount)) AS lv " .
+               "FROM ( SELECT SUM(t.amount) AS lv " .
                         "FROM {$mepr_db->transactions} AS t " .
-                       "WHERE t.status IN (%s,%s) " .
+                       "WHERE t.txn_type = %s " .
+                         "AND t.status = %s " .
                        "GROUP BY t.user_id ) as lvsums";
 
     // Gotta check for confirmed too ... we want all "members" included in the calculation
     $query = $wpdb->prepare( $query,
-                             MeprTransaction::$confirmed_str,
+                             MeprTransaction::$payment_str,
                              MeprTransaction::$complete_str );
 
     return $wpdb->get_var( $query );
@@ -499,10 +509,11 @@ class MeprReports {
         FROM ( SELECT COUNT(*) AS num
                  FROM {$mepr_db->transactions} AS t
                 WHERE t.status=%s
+                  AND t.txn_type=%s
                 GROUP BY t.user_id ) as p
     ";
 
-    $q = $wpdb->prepare($q, MeprTransaction::$complete_str);
+    $q = $wpdb->prepare($q, MeprTransaction::$complete_str, MeprTransaction::$payment_str);
 
     return $wpdb->get_var($q);
   }
@@ -555,10 +566,12 @@ class MeprReports {
     $q = "
       SELECT COUNT(*) AS num
         FROM {$mepr_db->transactions} AS t
-       WHERE t.status=%s
+       WHERE t.status = %s
+         AND t.txn_type = %s
          AND ( SELECT tr.id
                  FROM {$mepr_db->transactions} AS tr
                 WHERE tr.status=%s
+                  AND tr.txn_type=%s
                   AND tr.user_id=t.user_id
                   AND tr.expires_at <> '0000-00-00 00:00:00'
                   AND tr.expires_at < %s
@@ -569,8 +582,10 @@ class MeprReports {
 
     $q = $wpdb->prepare($q,
                         MeprTransaction::$complete_str,
+                        MeprTransaction::$payment_str,
                         MeprTransaction::$complete_str,
-                        date('Y-m-d H:i:s'));
+                        MeprTransaction::$payment_str,
+                        gmdate('Y-m-d H:i:s'));
 
     $res = $wpdb->get_col($q);
 
@@ -591,5 +606,87 @@ class MeprReports {
   {
     $ts = mktime(0, 0, 1, $month, $day, $year);
     return MeprUtils::get_date_from_ts($ts, $format);
+  }
+
+  public static function subscription_stats($created_since=false) {
+    global $wpdb;
+
+    $mepr_db = MeprDb::fetch();
+
+    $q = $wpdb->prepare("
+        SELECT SUM(IF(status=%s,1,0)) AS pending,
+               SUM(IF(status=%s,1,0)) AS enabled,
+               SUM(IF(status=%s,1,0)) AS suspended,
+               SUM(IF(status=%s,1,0)) AS cancelled,
+               TRUNCATE(AVG(IF(status=%s,total,0)),2) AS pending_average_total,
+               TRUNCATE(AVG(IF(status=%s,total,0)),2) AS enabled_average_total,
+               TRUNCATE(AVG(IF(status=%s,total,0)),2) AS suspended_average_total,
+               TRUNCATE(AVG(IF(status=%s,total,0)),2) AS cancelled_average_total,
+               TRUNCATE(SUM(IF(status=%s,total,0)),2) AS pending_sum_total,
+               TRUNCATE(SUM(IF(status=%s,total,0)),2) AS enabled_sum_total,
+               TRUNCATE(SUM(IF(status=%s,total,0)),2) AS suspended_sum_total,
+               TRUNCATE(SUM(IF(status=%s,total,0)),2) AS cancelled_sum_total
+          FROM {$mepr_db->subscriptions}
+      ",
+      MeprSubscription::$pending_str,
+      MeprSubscription::$active_str,
+      MeprSubscription::$suspended_str,
+      MeprSubscription::$cancelled_str,
+      MeprSubscription::$pending_str,
+      MeprSubscription::$active_str,
+      MeprSubscription::$suspended_str,
+      MeprSubscription::$cancelled_str,
+      MeprSubscription::$pending_str,
+      MeprSubscription::$active_str,
+      MeprSubscription::$suspended_str,
+      MeprSubscription::$cancelled_str
+    );
+
+    if(!empty($created_since)) {
+      $q .= $wpdb->prepare("WHERE created_at >= %s",$created_since);
+    }
+
+    return $wpdb->get_row($q);
+  }
+
+  public static function transaction_stats($created_since=false) {
+    global $wpdb;
+
+    $mepr_db = MeprDb::fetch();
+
+    $q = $wpdb->prepare("
+        SELECT SUM(IF(txn_type=%s AND status=%s,1,0)) AS pending,
+               SUM(IF(txn_type=%s AND status=%s,1,0)) AS failed,
+               SUM(IF(txn_type=%s AND status=%s,1,0)) AS complete,
+               SUM(IF(txn_type=%s AND status=%s,1,0)) AS refunded,
+               TRUNCATE(AVG(IF(txn_type=%s AND status=%s,total,0)),2) AS pending_average_total,
+               TRUNCATE(AVG(IF(txn_type=%s AND status=%s,total,0)),2) AS failed_average_total,
+               TRUNCATE(AVG(IF(txn_type=%s AND status=%s,total,0)),2) AS complete_average_total,
+               TRUNCATE(AVG(IF(txn_type=%s AND status=%s,total,0)),2) AS refunded_average_total,
+               TRUNCATE(SUM(IF(txn_type=%s AND status=%s,total,0)),2) AS pending_sum_total,
+               TRUNCATE(SUM(IF(txn_type=%s AND status=%s,total,0)),2) AS failed_sum_total,
+               TRUNCATE(SUM(IF(txn_type=%s AND status=%s,total,0)),2) AS complete_sum_total,
+               TRUNCATE(SUM(IF(txn_type=%s AND status=%s,total,0)),2) AS refunded_sum_total
+          FROM {$mepr_db->transactions}
+      ",
+      MeprTransaction::$payment_str, MeprTransaction::$pending_str,
+      MeprTransaction::$payment_str, MeprTransaction::$failed_str,
+      MeprTransaction::$payment_str, MeprTransaction::$complete_str,
+      MeprTransaction::$payment_str, MeprTransaction::$refunded_str,
+      MeprTransaction::$payment_str, MeprTransaction::$pending_str,
+      MeprTransaction::$payment_str, MeprTransaction::$failed_str,
+      MeprTransaction::$payment_str, MeprTransaction::$complete_str,
+      MeprTransaction::$payment_str, MeprTransaction::$refunded_str,
+      MeprTransaction::$payment_str, MeprTransaction::$pending_str,
+      MeprTransaction::$payment_str, MeprTransaction::$failed_str,
+      MeprTransaction::$payment_str, MeprTransaction::$complete_str,
+      MeprTransaction::$payment_str, MeprTransaction::$refunded_str
+    );
+
+    if(!empty($created_since)) {
+      $q .= $wpdb->prepare("WHERE created_at >= %s",$created_since);
+    }
+
+    return $wpdb->get_row($q);
   }
 } //End class

@@ -1,11 +1,9 @@
 <?php
 if(!defined('ABSPATH')) {die('You are not allowed to call this page directly.');}
 
-$products = get_posts( array( 'numberposts' => -1,
-                              'post_type' => 'memberpressproduct',
-                              'post_status' => 'publish' ) );
+$products = MeprCptModel::all('MeprProduct');
 
-if($products != null):
+if(!empty($products)):
 ?>
   <div id="mepr-coupons-form">
     <div class="mepr-options-pane">

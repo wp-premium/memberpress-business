@@ -87,8 +87,7 @@ class MeprUtils {
   }
 
   public static function is_logged_in_and_current_user($user_id) {
-    global $current_user;
-    self::get_currentuserinfo();
+    $current_user = self::get_currentuserinfo();
 
     return (self::is_user_logged_in() and (is_object($current_user) && $current_user->ID == $user_id));
   }
@@ -109,7 +108,7 @@ class MeprUtils {
     $mepr_cap = self::get_mepr_admin_capability();
 
     if(empty($user_id)) {
-      return current_user_can($mepr_cap);
+      return self::current_user_can($mepr_cap);
     }
     else {
       return user_can($user_id, $mepr_cap);
@@ -118,6 +117,11 @@ class MeprUtils {
 
   public static function is_subscriber() {
     return (current_user_can('subscriber'));
+  }
+
+  public static function current_user_can($role) {
+    self::include_pluggables('wp_get_current_user');
+    return current_user_can($role);
   }
 
   public static function minutes($n = 1) {
@@ -136,29 +140,49 @@ class MeprUtils {
     return $n * self::days(7);
   }
 
-  public static function months($n, $month_timestamp=false, $backwards=false) {
-    $month_timestamp = empty($month_timestamp) ? time() : $month_timestamp;
-    $seconds = 0;
+  public static function months($n, $month_ts=false, $backwards=false, $ts_day=false) {
+    $month_ts = empty($month_ts) ? time() : $month_ts;
 
-    // If backward we start in the previous month
+    // Get the day for the ts_day
+    $ts_day = empty($ts_day) ? date('j', $month_ts) : $ts_day;
+
+    // Get the month number for the timestamp
+    $ts_month = (int)date('n', $month_ts);
+
+    // ts_month +/- number of months and then mod by 12 to get the right target month
     if($backwards) {
-      $month_timestamp -= self::days((int)date('t', $month_timestamp));
+      $month = ($ts_month - $n) % 12;
+    }
+    else {
+      $month = ($ts_month + $n) % 12;
     }
 
-    for($i=0; $i < $n; $i++) {
-      $month_seconds = self::days((int)date('t', $month_timestamp));
-      $seconds += $month_seconds;
+    // Get the year for the timestamp
+    $ts_year = (int)date('Y', $month_ts);
 
-      // We want the months going into the past
-      if($backwards) {
-        $month_timestamp -= $month_seconds;
-      }
-      else { // We want the months going into the past
-        $month_timestamp += $month_seconds;
-      }
+    // ts_month +/- number of months and then divide by 12 to get the right target month
+    // round down no matter what then either +/- by the ts_year to get the right target year
+    if($backwards) {
+      $year = $ts_year - abs(floor(($ts_month - $n) / 12));
+    }
+    else {
+      $year = $ts_year + abs(floor(($ts_month + $n) / 12));
     }
 
-    return $seconds;
+    $days_in_month = date('t', mktime(0,0,0,$month,1,$year));
+
+    $day = ($ts_day > $days_in_month) ? $days_in_month : $ts_day;
+
+    $new_month_ts = mktime(
+      date('H',$month_ts),
+      date('i',$month_ts),
+      date('s',$month_ts),
+      $month,
+      $day,
+      $year
+    );
+
+    return abs($new_month_ts - $month_ts);
   }
 
   public static function years($n, $year_timestamp=false, $backwards=false) {
@@ -212,27 +236,40 @@ class MeprUtils {
   //Coupons rely on this be careful changing it
   public static function get_date_from_ts($ts, $format = 'M d, Y') {
     if($ts > 0) {
-      return date($format, $ts);
+      return gmdate($format, $ts);
     }
     else {
-      return date($format, time());
+      return gmdate($format, time());
     }
   }
 
-  public static function mysql_date_to_ts($mysql_date) {
+  public static function db_date_to_ts($mysql_date) {
     return strtotime($mysql_date);
   }
 
   public static function ts_to_mysql_date($ts, $format='Y-m-d H:i:s') {
-    return date($format, $ts);
+    return gmdate($format, $ts);
   }
 
-  public static function mysql_now($format='Y-m-d H:i:s') {
+  public static function db_now($format='Y-m-d H:i:s') {
     return self::ts_to_mysql_date(time(),$format);
   }
 
-  public static function mysql_lifetime() {
+  public static function db_lifetime() {
     return '0000-00-00 00:00:00';
+  }
+
+  /*** Deprecated mysql* functions ***/
+  public static function mysql_date_to_ts($mysql_date) {
+    return self::db_date_to_ts($mysql_date);
+  }
+
+  public static function mysql_now($format='Y-m-d H:i:s') {
+    return self::db_now($format);
+  }
+
+  public static function mysql_lifetime() {
+    return self::db_lifetime();
   }
 
   public static function array_to_string($my_array, $debug = false, $level = 0) {
@@ -246,25 +283,61 @@ class MeprUtils {
     return ob_get_clean();
   }
 
+  //Inserts into an associative array
+  public static function a_array_insert($array, $values, $offset) {
+    return array_slice($array, 0, $offset, true) + $values + array_slice($array, $offset, NULL, true);
+  }
+
   // Drop in replacement for evil eval
-  public static function replace_vals($content, $params, $start_token="\\\\{\\\\$", $end_token="\\\\}") {
+  public static function replace_vals($content, $params, $start_token="\\{\\$", $end_token="\\}") {
     if(!is_array($params)) { return $content; }
 
-    $callback = create_function('$k','return "/' . $start_token . '\w*{$k}\w*' . $end_token . '/";');
+    $callback = function($k) use($start_token, $end_token) {
+      $k = preg_quote($k, "/");
+      return "/{$start_token}" . "[^\W_]*{$k}[^\W_]*" . "{$end_token}/";
+    };
     $patterns = array_map( $callback, array_keys($params) );
     $replacements = array_values( $params );
+
+    //Make sure all replacements can be converted to a string yo
+    foreach($replacements as $i => $val) {
+      //Numbers and strings and objects with __toString are fine as is
+      if(is_string($val) || is_numeric($val) || (is_object($val) && method_exists($val, '__toString'))) {
+        continue;
+      }
+
+      //Datetime's
+      if($val instanceof DateTime && isset($val->date)) {
+        $replacements[$i] = $val->date;
+        continue;
+      }
+
+      //If we made it here ???
+      $replacements[$i] = '';
+    }
 
     return preg_replace( $patterns, $replacements, $content );
   }
 
-  public static function format_float($number, $num_decimals = 2) {
-    //BREAKING STRIPE (adding commas in numbers) - WE'LL NEED TO LOOK INTO THIS MORE AFTER 1.2.7 is released
-    // if(function_exists('number_format_i18n')) {
-      // return number_format_i18n($number, $num_decimals); //The wp way
-    // }
+  public static function format_tax_percent_for_display($number) {
+    $number = self::format_float($number, 3) + 0; //Number with period as decimal point - adding 0 will truncate insignificant 0's at the end
 
-    //else the php way
+    //How many decimal places are left?
+    $num_remain_dec = strlen(substr(strrchr($number, "."), 1));
+
+    return number_format_i18n($number, $num_remain_dec);
+  }
+
+  public static function format_float($number, $num_decimals = 2) {
     return number_format($number, $num_decimals, '.', '');
+  }
+
+  public static function format_currency_float($number, $num_decimals = 2) {
+    if(function_exists('number_format_i18n')) {
+      return number_format_i18n($number, $num_decimals); //The wp way
+    }
+
+    return self::format_float($number, $num_decimals);
   }
 
   public static function is_zero_decimal_currency() {
@@ -296,8 +369,9 @@ class MeprUtils {
   }
 
   public static function protocol() {
-    if( ( is_ssl() ) ||
-        ( isset($_SERVER['HTTP_X_FORWARDED_PROTO']) &&
+    if( is_ssl() ||
+        ( defined('MEPR_SECURE_PROXY') && //USER must define this in wp-config.php if they're doing HTTPS between the proxy
+          isset($_SERVER['HTTP_X_FORWARDED_PROTO']) &&
           strtolower($_SERVER['HTTP_X_FORWARDED_PROTO']) == 'https' ) ) {
       return 'https';
     }
@@ -369,18 +443,20 @@ class MeprUtils {
     return "**** **** **** {$last4}";
   }
 
-  public static function calculate_proration_by_subs($old_sub, $new_sub) {
+  public static function calculate_proration_by_subs($old_sub, $new_sub, $reset_period=false) {
     // find expiring_txn txn on old_sub
     $expiring_txn = $old_sub->expiring_txn();
 
     // If no money has changed hands then no proration
-    if($expiring_txn->txn_type == MeprTransaction::$subscription_confirmation_str) {
+    if( $expiring_txn != false && $expiring_txn instanceof MeprTransaction &&
+        $expiring_txn->txn_type == MeprTransaction::$subscription_confirmation_str ) {
       return (object)array('proration' => 0.00, 'days' => 0);
     }
 
     // If the subscription has a trial and we're in that first trial payment ...
     // and it's not a proration then we need the trial amount rather than the sub price
-    if($old_sub->txn_count == 1 && $old_sub->trial && !$old_sub->prorated_trial) {
+    if( $expiring_txn != false && $expiring_txn instanceof MeprTransaction &&
+        $old_sub->txn_count == 1 && $old_sub->trial && !$old_sub->prorated_trial ) {
       $old_price = $expiring_txn->amount;
     }
     else {
@@ -390,8 +466,9 @@ class MeprUtils {
     $res = self::calculate_proration( $old_price,
                                       $new_sub->price,
                                       $old_sub->days_in_this_period(),
-                                      $new_sub->days_in_this_period(),
+                                      $new_sub->days_in_this_period(true),
                                       $old_sub->days_till_expiration(),
+                                      $reset_period,
                                       $old_sub,
                                       $new_sub );
 
@@ -400,73 +477,76 @@ class MeprUtils {
 
   public static function calculate_proration( $old_amount,
                                               $new_amount,
-                                              $old_period ='lifetime',
-                                              $new_period ='lifetime',
-                                              $days_left  ='lifetime',
-                                              $old_sub    = false, /*Not used, but valuable for the filter*/
-                                              $new_sub    = false  /*Not used, but valuable for the filter*/ ) {
-    if(self::format_float($old_amount) == '0.00') { //No proration if the old amount is 0 bro
-      $proration = self::format_float(0);
-      $days = 0;
-    }
-    elseif(is_numeric($old_period) and is_numeric($new_period)) {
-      // sub to sub
-      // calculate amount of money left on old sub
-      $old_outstanding_amount = (($old_amount / $old_period) * $days_left);
+                                              $old_period    ='lifetime',
+                                              $new_period    ='lifetime',
+                                              $old_days_left ='lifetime',
+                                              $reset_period  = false,
+                                              $old_sub       = false, /*These will be false on non auto-recurring*/
+                                              $new_sub       = false  /*These will be false on non auto-recurring*/ ) {
+    // By default days left in the new sub are equal to the days left in the old
+    $new_days_left = $old_days_left;
 
-      // calculate cost of same amount of time on new sub
-      $new_outstanding_amount = (($new_amount / $new_period) * $days_left);
-
-      // calculate the difference (amount owed to upgrade)
-      $diff = (float)((float)$new_outstanding_amount - (float)$old_outstanding_amount);
-      $proration = self::format_float(max($diff, 0.00));
-
-      //Handle downgrades the right way with the correct # of free days
-      if($diff < 0.00) {
-        $days = ceil($old_outstanding_amount / ($new_amount / $new_period));
+    if(is_numeric($old_period) && is_numeric($new_period) && $new_sub !== false && $old_amount > 0) {
+      // recurring to recurring
+      if($old_days_left > $new_period || $reset_period) {
+        // What if the days left exceed the $new_period?
+        // And the new outstanding amount is greater?
+        // Days left should be reset to the new period
+        $new_days_left = $new_period;
       }
-      else {
-        $days = $days_left;
+
+      $old_per_day_amount = $old_amount / $old_period;
+      $new_per_day_amount = $new_amount / $new_period;
+
+      $old_outstanding_amount = $old_per_day_amount * $old_days_left;
+      $new_outstanding_amount = $new_per_day_amount * $new_days_left;
+
+      $proration = $new_outstanding_amount - $old_outstanding_amount;
+
+      $days = $new_days_left;
+      if($proration < 0) {
+        // Extend days out by finding out how many periods the
+        // old outstanding amount will buy to create a free trial
+        $days = ($new_amount > 0 ? ((abs($proration)+$new_amount)/$new_amount)*$new_days_left : 0);
+        $proration = 0;
       }
     }
-    elseif(is_numeric($old_period) and is_numeric($days_left) and $new_period == 'lifetime') {
-      // sub to lifetime
+    elseif(is_numeric($old_period) && is_numeric($old_days_left) && ($new_period == 'lifetime' || $new_sub === false) && $old_amount > 0) {
+      // recurring to lifetime
       // apply outstanding amount to lifetime purchase
       // calculate amount of money left on old sub
-      $old_outstanding_amount = (($old_amount / $old_period) * $days_left);
+      $old_outstanding_amount = (($old_amount / $old_period) * $old_days_left);
 
-      $proration = self::format_float(max(($new_amount - $old_outstanding_amount), 0.00));
+      $proration = max($new_amount - $old_outstanding_amount, 0.00);
       $days = 0; // we just do this thing
     }
-    elseif($old_period == 'lifetime' and is_numeric($new_period)) {
-      // lifetime to sub
-      // calculate amount of money left on old sub
-      $old_outstanding_amount = (is_numeric($days_left))?(($old_amount / $old_period) * $days_left):$old_amount;
-
-      // calculate cost of same amount of time on new sub
-      $new_outstanding_amount = (is_numeric($days_left))?(($new_amount / $new_period) * $days_left):$new_amount;
-
-      // calculate the difference (amount owed to upgrade)
-      $proration = self::format_float(max(($new_outstanding_amount - $old_outstanding_amount), 0.00));
-      $days = (is_numeric($days_left))?$days_left:$new_period;
+    elseif($old_period == 'lifetime' && is_numeric($new_period) && $old_amount > 0) {
+      // lifetime to recurring{
+      $proration = max($new_amount - $old_amount, 0.00);
+      $days = $new_period; //(is_numeric($old_days_left) && !$reset_period)?$old_days_left:$new_period;
     }
-    elseif($old_period == 'lifetime' and $new_period == 'lifetime') {
+    elseif($old_period == 'lifetime' && $new_period == 'lifetime' && $old_amount > 0) {
       // lifetime to lifetime
-      $proration = self::format_float(max(($new_amount - $old_amount), 0.00));
+      $proration = max(($new_amount - $old_amount), 0.00);
       $days = 0; // We be lifetime brah
     }
     else {
       // Default
-      $proration = self::format_float(0);
+      $proration = 0;
       $days = 0;
     }
 
     // Don't allow amounts that are less than a dollar but greater than zero
-    $proration = self::format_float(($proration > 0.00 && $proration < 1.00) ? 1.00 : $proration);
+    $proration = (($proration > 0.00 && $proration < 1.00) ? 1.00 : $proration);
+    $days = ceil($days);
+    $proration = self::format_float($proration);
+
+    //Make sure we don't do more than 1 year on days
+    if($days > 365) { $days = 365; }
 
     $prorations = (object)compact('proration', 'days');
 
-    return MeprHooks::apply_filters('mepr-proration', $prorations, $old_amount, $new_amount, $old_period, $new_period, $days_left, $old_sub, $new_sub);
+    return MeprHooks::apply_filters('mepr-proration', $prorations, $old_amount, $new_amount, $old_period, $new_period, $old_days_left, $old_sub, $new_sub, $reset_period);
   }
 
   public static function is_associative_array($arr) {
@@ -610,9 +690,10 @@ class MeprUtils {
    */
   public static function to_xml($data, $root_node_name='memberpressData', $xml=null, $parent_node_name='') {
     // turn off compatibility mode as simple xml throws a wobbly if you don't.
-    if(ini_get('zend.ze1_compatibility_mode') == 1) {
-      ini_set('zend.ze1_compatibility_mode', 0);
-    }
+    //Deprecated as of PHP 5.3
+    // if(ini_get('zend.ze1_compatibility_mode') == 1) {
+      // ini_set('zend.ze1_compatibility_mode', 0);
+    // }
 
     if(is_null($xml)) {
       $xml = simplexml_load_string('<?xml version=\'1.0\' encoding=\'utf-8\'?'.'><'.$root_node_name.' />');
@@ -680,7 +761,8 @@ class MeprUtils {
                    $telescope, $null_to_mysql_null );
     }
 
-    $csv .= implode( $delimiter, array_keys($headers) ) . "\n";
+    // Always enclose headers
+    $csv .= $enclosure . implode( $enclosure.$delimiter.$enclosure, array_keys($headers) ) . $enclosure . "\n";
 
     foreach( $lines as $line ) {
       $csv_line = array_merge($headers, $line);
@@ -712,6 +794,8 @@ class MeprUtils {
 
         continue;
       }
+
+      $field = MeprHooks::apply_filters('mepr_process_csv_cell', $field, $label);
 
       if(is_array($field)) {
         $output += self::process_csv_row($field, $headers, $last_path, $new_path, $delimiter, $enclosure, $enclose_all, $telescope, $null_to_mysql_null);
@@ -804,6 +888,13 @@ class MeprUtils {
     return ucwords($str);
   }
 
+  public static function unsanitize_title($str) {
+    if(!is_string($str)) { return __('Unknown', 'memberpress'); }
+
+    $str = str_replace(array('-', '_'), array(' ', ' '), $str);
+    return ucwords($str);
+  }
+
   // Deep convert to associative array using JSON
   // TODO: Find some cleaner way to do a deep convert to an assoc array
   public static function deep_convert_to_associative_array($struct) {
@@ -888,7 +979,7 @@ class MeprUtils {
   }
 
   public static function countries($prioritize_my_country=true) {
-    $countries = require( MEPR_I18N_PATH . '/countries.php' );
+    $countries = require(MEPR_I18N_PATH . '/countries.php');
 
     if($prioritize_my_country) {
       $country_code = get_option('mepr_biz_country');
@@ -900,12 +991,21 @@ class MeprUtils {
       }
     }
 
-    return $countries;
+    return MeprHooks::apply_filters(
+      'mepr_countries',
+      $countries,
+      $prioritize_my_country
+    );
+  }
+
+  public static function country_name($code) {
+    $countries = self::countries(false);
+    return (isset($countries[$code]) ? $countries[$code] : $code);
   }
 
   public static function states() {
     $states = array();
-    $sfiles = @glob( MEPR_I18N_PATH . '/states/*', GLOB_NOSORT );
+    $sfiles = @glob( MEPR_I18N_PATH . '/states/[A-Z][A-Z].php', GLOB_NOSORT );
     foreach( $sfiles as $sfile ) {
       require( $sfile );
     }
@@ -974,15 +1074,15 @@ class MeprUtils {
     return MEPR_SCRIPT_URL.'&action=mepr_load_css&t=price_table';
   }
 
-  public static function locate_by_ip($ip=null, $source='geoplugin') {
+  public static function locate_by_ip($ip = null, $source = 'geoplugin') {
     $ip = (is_null($ip)?$_SERVER['REMOTE_ADDR']:$ip);
     if(!self::is_ip($ip)) { return false; }
 
     $lockey = 'mp_locate_by_ip_' . md5($ip.$source);
     $loc = get_transient($lockey);
 
-    if(false===$loc) {
-      if($source=='freegeoip') {
+    if(false === $loc) {
+      if($source == 'freegeoip') {
         $url    = "https://freegeoip.net/json/{$ip}";
         $cindex = 'country_code';
         $sindex = 'region_code';
@@ -1000,30 +1100,31 @@ class MeprUtils {
       $country = (isset($obj->{$cindex})?$obj->{$cindex}:'');
 
       // If the state is goofy then just blank it out
-      if(file_exists(MEPR_I18N_PATH.'/states/'.$country.'.php')) {
+      if(file_exists(MEPR_I18N_PATH . '/states/' . $country . '.php')) {
         $states = array();
-        require(MEPR_I18N_PATH.'/states/'.$country.'.php');
+        require(MEPR_I18N_PATH . '/states/' . $country . '.php');
         if(!isset($states[$country][$state])) {
           $state = '';
         }
       }
 
       $loc = (object)compact('state','country');
-      set_transient($lockey,$loc,DAY_IN_SECONDS);
+      set_transient($lockey, $loc, DAY_IN_SECONDS);
     }
 
     return $loc;
   }
 
   public static function is_ip($ip) {
-    return preg_match('#^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$#',$ip);
+    // return preg_match('#^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$#',$ip);
+    return ((bool)filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) || (bool)filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6));
   }
 
-  public static function country_by_ip($ip=null, $source='geoplugin') {
+  public static function country_by_ip($ip = null, $source = 'geoplugin') {
     return (($loc = self::locate_by_ip()) ? $loc->country : '' );
   }
 
-  public static function state_by_ip($ip=null, $source='geoplugin') {
+  public static function state_by_ip($ip = null, $source = 'geoplugin') {
     return (($loc = self::locate_by_ip()) ? $loc->state : '' );
   }
 
@@ -1057,12 +1158,485 @@ class MeprUtils {
     return ((preg_match("#\?#",$link))?'&':'?');
   }
 
+  public static function http_status_codes() {
+    return array(
+      100 => 'Continue',
+      101 => 'Switching Protocols',
+      102 => 'Processing',
+      200 => 'OK',
+      201 => 'Created',
+      202 => 'Accepted',
+      203 => 'Non-Authoritative Information',
+      204 => 'No Content',
+      205 => 'Reset Content',
+      206 => 'Partial Content',
+      207 => 'Multi-Status',
+      300 => 'Multiple Choices',
+      301 => 'Moved Permanently',
+      302 => 'Found',
+      303 => 'See Other',
+      304 => 'Not Modified',
+      305 => 'Use Proxy',
+      306 => 'Switch Proxy',
+      307 => 'Temporary Redirect',
+      400 => 'Bad Request',
+      401 => 'Unauthorized',
+      402 => 'Payment Required',
+      403 => 'Forbidden',
+      404 => 'Not Found',
+      405 => 'Method Not Allowed',
+      406 => 'Not Acceptable',
+      407 => 'Proxy Authentication Required',
+      408 => 'Request Timeout',
+      409 => 'Conflict',
+      410 => 'Gone',
+      411 => 'Length Required',
+      412 => 'Precondition Failed',
+      413 => 'Request Entity Too Large',
+      414 => 'Request-URI Too Long',
+      415 => 'Unsupported Media Type',
+      416 => 'Requested Range Not Satisfiable',
+      417 => 'Expectation Failed',
+      418 => 'I\'m a teapot',
+      422 => 'Unprocessable Entity',
+      423 => 'Locked',
+      424 => 'Failed Dependency',
+      425 => 'Unordered Collection',
+      426 => 'Upgrade Required',
+      449 => 'Retry With',
+      450 => 'Blocked by Windows Parental Controls',
+      500 => 'Internal Server Error',
+      501 => 'Not Implemented',
+      502 => 'Bad Gateway',
+      503 => 'Service Unavailable',
+      504 => 'Gateway Timeout',
+      505 => 'HTTP Version Not Supported',
+      506 => 'Variant Also Negotiates',
+      507 => 'Insufficient Storage',
+      509 => 'Bandwidth Limit Exceeded',
+      510 => 'Not Extended'
+    );
+  }
+
+  public static function exit_with_status($status,$message='') {
+    $codes = self::http_status_codes();
+    header("HTTP/1.1 {$status} {$codes[$status]}", true, $status);
+    exit($message);
+  }
+
+  public static function error_log($error) {
+    error_log(sprintf(__('*** MemberPress Error: %s', 'memberpress'),$error));
+  }
+
+  public static function debug_log($message) {
+    //Getting some complaints about using WP_DEBUG here
+    if(defined('WP_MEPR_DEBUG') && WP_MEPR_DEBUG) {
+      error_log(sprintf(__('*** MemberPress Debug: %s', 'memberpress'),$message));
+    }
+  }
+
+  public static function is_wp_error($obj) {
+    if(is_wp_error($obj)) {
+      self::error_log($obj->get_error_message());
+      return true;
+    }
+
+    return false;
+  }
+
+  /** EMAIL NOTICE METHODS **/
+  public static function send_notices($obj, $user_class=null, $admin_class=null, $force=false) {
+    if($obj instanceof MeprSubscription) {
+      $params = MeprSubscriptionsHelper::get_email_params($obj);
+    }
+    elseif($obj instanceof MeprTransaction) {
+      $params = MeprTransactionsHelper::get_email_params($obj);
+    }
+    else {
+      return false;
+    }
+
+    $usr = $obj->user();
+
+    try {
+      if( !is_null($user_class) ) {
+        $uemail = MeprEmailFactory::fetch($user_class);
+        $uemail->to = $usr->formatted_email();
+
+        if($force) {
+          $uemail->send($params);
+        }
+        else {
+          $uemail->send_if_enabled($params);
+        }
+      }
+
+      if( !is_null($admin_class) ) {
+        $aemail = MeprEmailFactory::fetch($admin_class);
+
+        if($force) {
+          $aemail->send($params);
+        }
+        else {
+          $aemail->send_if_enabled($params);
+        }
+      }
+    }
+    catch( Exception $e ) {
+      // Fail silently for now
+    }
+  }
+
+  public static function send_signup_notices($txn, $force=false, $send_admin_notices=true) {
+    $admin_one_off_class = ($send_admin_notices ? 'MeprAdminNewOneOffEmail' : null);
+    $admin_class = ($send_admin_notices ? 'MeprAdminSignupEmail' : null);
+
+    $params = MeprTransactionsHelper::get_email_params($txn);
+    $usr = $txn->user();
+    $prd_email = MeprEmailFactory::fetch(
+      'MeprUserProductWelcomeEmail',
+      'MeprBaseProductEmail',
+      array(
+        array(
+          'product_id' => $txn->product_id
+        )
+      )
+    );
+    $prd_sent = false;
+
+    //Send Product Welcome Email?
+    if($prd_email->enabled()) {
+      self::send_product_welcome_notices($prd_email, $params, $usr);
+      $prd_sent = true;
+    }
+
+    //If this is a one-off send that email too
+    if(empty($txn->subscription_id)) {
+      self::send_notices($txn, null, $admin_one_off_class, $force);
+    }
+
+    //Send New Signup Emails?
+    if(!$usr->signup_notice_sent) {
+      //Don't send the MemberPress Welcome Email if the Product Welcome Email was sent instead
+      if($prd_sent) {
+        self::send_notices($txn, null, $admin_class, $force);
+      }
+      else {
+        self::send_notices($txn, 'MeprUserWelcomeEmail', $admin_class, $force);
+      }
+
+      $usr->signup_notice_sent = true;
+      $usr->store();
+
+      //Maybe move this to the bottom of this method outside of an if statement?
+      //Not sure if this should happen on each new signup, or only on a member's first signup
+      MeprEvent::record('member-signup-completed', $usr, (object)$txn->rec); //have to use ->rec here for some reason
+    }
+  }
+
+  public static function send_new_sub_notices($sub) {
+    self::send_notices( $sub, null, 'MeprAdminNewSubEmail' );
+    MeprEvent::record('subscription-created', $sub);
+  }
+
+  public static function send_transaction_receipt_notices( $txn ) {
+    /** TODO: These events should probably be moved ... but
+      * 'tis very convenient to put them here for now. */
+    MeprEvent::record('transaction-completed', $txn);
+
+    // This is a recurring payment
+    if(($sub = $txn->subscription())) {
+      MeprEvent::record('recurring-transaction-completed', $txn);
+
+      if($sub->txn_count > 1) {
+        MeprEvent::record('renewal-transaction-completed', $txn);
+      }
+    }
+    elseif(!$sub) {
+      MeprEvent::record('non-recurring-transaction-completed', $txn);
+    }
+
+    self::send_notices(
+      $txn,
+      'MeprUserReceiptEmail',
+      'MeprAdminReceiptEmail'
+    );
+  }
+
+  public static function send_suspended_sub_notices($sub) {
+    self::send_notices(
+      $sub,
+      'MeprUserSuspendedSubEmail',
+      'MeprAdminSuspendedSubEmail'
+    );
+    MeprEvent::record('subscription-paused', $sub);
+  }
+
+  public static function send_resumed_sub_notices($sub) {
+    self::send_notices(
+      $sub,
+      'MeprUserResumedSubEmail',
+      'MeprAdminResumedSubEmail'
+    );
+    MeprEvent::record('subscription-resumed', $sub);
+  }
+
+  public static function send_cancelled_sub_notices($sub) {
+    self::send_notices(
+      $sub,
+      'MeprUserCancelledSubEmail',
+      'MeprAdminCancelledSubEmail'
+    );
+    MeprEvent::record('subscription-stopped', $sub);
+  }
+
+  public static function send_upgraded_txn_notices($txn) {
+    self::send_upgraded_sub_notices($txn);
+  }
+
+  public static function send_upgraded_sub_notices($sub) {
+    self::send_notices(
+      $sub,
+      'MeprUserUpgradedSubEmail',
+      'MeprAdminUpgradedSubEmail'
+    );
+  }
+
+  public static function record_upgraded_sub_events($sub, $event_txn) {
+    MeprEvent::record('subscription-upgraded', $sub);
+    MeprEvent::record('subscription-changed', $event_txn, $sub->latest_txn_id);
+
+    if($sub instanceof MeprTransaction) {
+      MeprEvent::record('subscription-upgraded-to-one-time', $sub);
+    }
+    else {
+      MeprEvent::record('subscription-upgraded-to-recurring', $sub);
+    }
+  }
+
+  public static function send_downgraded_txn_notices($txn) {
+    self::send_downgraded_sub_notices($txn);
+  }
+
+  public static function send_downgraded_sub_notices($sub) {
+    self::send_notices(
+      $sub,
+      'MeprUserDowngradedSubEmail',
+      'MeprAdminDowngradedSubEmail'
+    );
+  }
+
+  public static function record_downgraded_sub_events($sub, $event_txn) {
+    MeprEvent::record('subscription-downgraded', $sub);
+    MeprEvent::record('subscription-changed', $event_txn, $sub->latest_txn_id);
+
+    if($sub instanceof MeprTransaction) {
+      MeprEvent::record('subscription-downgraded-to-one-time', $sub);
+    }
+    else {
+      MeprEvent::record('subscription-downgraded-to-recurring', $sub);
+    }
+  }
+
+  public static function send_refunded_txn_notices($txn) {
+    self::send_notices(
+      $txn,
+      'MeprUserRefundedTxnEmail',
+      'MeprAdminRefundedTxnEmail'
+    );
+    MeprEvent::record('transaction-refunded', $txn);
+
+    // This is a recurring payment
+    if(($sub = $txn->subscription()) && $sub->txn_count > 0) {
+      MeprEvent::record('recurring-transaction-refunded', $txn);
+    }
+  }
+
+  public static function send_failed_txn_notices($txn) {
+    self::send_notices(
+      $txn,
+      'MeprUserFailedTxnEmail',
+      'MeprAdminFailedTxnEmail'
+    );
+
+    MeprEvent::record('transaction-failed', $txn);
+
+    // This is a recurring payment
+    if(($sub = $txn->subscription()) && $sub->txn_count > 0) {
+      MeprEvent::record('recurring-transaction-failed', $txn);
+    }
+  }
+
+  public static function send_product_welcome_notices($uemail, $params, $usr) {
+    try {
+      $uemail->to = $usr->formatted_email();
+      $uemail->send_if_enabled($params);
+    }
+    catch( Exception $e ) {
+      // Fail silently for now
+    }
+  }
+
+  public static function send_cc_expiration_notices( $txn ) {
+    $sub = $txn->subscription();
+
+    if( $sub instanceof MeprSubscription &&
+        $sub->cc_expiring_before_next_payment() ) {
+      self::send_notices(
+        $sub,
+        'MeprUserCcExpiringEmail',
+        'MeprAdminCcExpiringEmail'
+      );
+    }
+  }
+
+  public static function filter_array_keys($sarray, $keys) {
+    $rarray = array();
+    foreach($sarray as $key => $value) {
+      if(in_array($key, $keys)) {
+        $rarray[$key] = $value;
+      }
+    }
+    return $rarray;
+  }
+
+  public static function maybe_wpautop($text) {
+    $wpautop_disabled = get_option('mepr_wpautop_disable_for_emails');
+
+    if($wpautop_disabled) {
+      return $text;
+    }
+
+    return wpautop($text);
+  }
+
+  public static function match_uri($pattern,$uri,&$matches,$include_query_string=false) {
+    if($include_query_string) {
+      $uri = urldecode($uri);
+    }
+    else {
+      // Remove query string and decode
+      $uri = preg_replace('#(\?.*)?$#','',urldecode($uri));
+    }
+
+    // Resolve WP installs in sub-directories
+    preg_match('!^https?://[^/]*?(/.*)$!', site_url(), $m);
+
+    $subdir = ( isset($m[1]) ? $m[1] : '' );
+    $regex = '!^'.$subdir.$pattern.'$!';
+    return preg_match($regex, $uri, $matches);
+  }
+
+  /** Verifies that a url parameter exists and optionally that it contains a certain value. */
+  public static function valid_url_param($name, $value=null, $method=null) {
+    $params = $_REQUEST;
+    if(!empty($method)) {
+      $method = strtoupper($method);
+
+      if($method=='GET') {
+        $params = $_GET;
+      }
+      else if($method=='POST') {
+        $params = $_POST;
+      }
+    }
+
+    $verified = isset($params[$name]);
+
+    if($verified && !empty($value)) {
+      $verified = ($params[$name]==$value);
+    }
+
+    return $verified;
+  }
+
+  public static function build_query_string( $add_params=array(),
+                                             $include_query_string=false,
+                                             $exclude_params=array(),
+                                             $exclude_referer=true ) {
+    $query_string = '';
+    if($include_query_string) {
+      $query_string = $_SERVER['QUERY_STRING'];
+    }
+
+    if(empty($query_string)) {
+      $query_string = http_build_query($add_params);
+    }
+    else {
+      $query_string = $query_string . '&' . http_build_query($add_params);
+    }
+
+    if($exclude_referer) {
+      $exclude_params[] = '_wp_http_referer';
+    }
+
+    foreach($exclude_params as $param) {
+      $query_string = preg_replace('!&?' . preg_quote($param,'!') . '=[^&]*!', '', $query_string);
+    }
+
+    return $query_string;
+  }
+
+  // $add_nonce = [$action,$name]
+  public static function admin_url( $path,
+                                    $add_nonce=array(),
+                                    $add_params=array(),
+                                    $include_query_string=false,
+                                    $exclude_params=array(),
+                                    $exclude_referer=true ) {
+    $delim = MeprUtils::get_delim($path);
+
+    // Automatically exclude the nonce if it's present
+    if(!empty($add_nonce)) {
+      $nonce_action = $add_nonce[0];
+      $nonce_name = (isset($add_nonce[1]) ? $add_nonce[1] : '_wpnonce');
+      $exclude_params[] = $nonce_name;
+    }
+
+    $url = admin_url($path.$delim.self::build_query_string($add_params,$include_query_string,$exclude_params,$exclude_referer));
+
+    if(empty($add_nonce)) {
+      return $url;
+    }
+    else {
+      return html_entity_decode(wp_nonce_url($url,$nonce_action,$nonce_name));
+    }
+  }
+
+  public static function pretty_permalinks_using_index() {
+    $permalink_structure = get_option('permalink_structure');
+    return preg_match('!^/index.php!',$permalink_structure);
+  }
+
+  /** This returns the structure for all of the gateway notify urls.
+    * It can even account for folks unlucky enough to have to prepend
+    * their URLs with '/index.php'.
+    * NOTE: This function is only applicable if pretty permalinks are enabled.
+    */
+  public static function gateway_notify_url_structure() {
+    $pre_slug_index = '';
+    if(self::pretty_permalinks_using_index()) {
+      $pre_slug_index = '/index.php';
+    }
+
+    return MeprHooks::apply_filters(
+      'mepr_gateway_notify_url_structure',
+      "{$pre_slug_index}/mepr/notify/%gatewayid%/%action%"
+    );
+  }
+
+  /** This modifies the gateway notify url structure to be matched against a uri.
+    * By default it will generate this: /mepr/notify/([^/\?]+)/([^/\?]+)/?
+    * However, this could change depending on what gateway_notify_url_structure returns
+    */
+  public static function gateway_notify_url_regex_pattern() {
+    return preg_replace('!(%gatewayid%|%action%)!', '([^/\?]+)', self::gateway_notify_url_structure()) . '/?';
+  }
+
 /* PLUGGABLE FUNCTIONS AS TO NOT STEP ON OTHER PLUGINS' CODE */
   public static function get_currentuserinfo() {
-    global $current_user;
-
-    self::include_pluggables('get_currentuserinfo');
-    get_currentuserinfo();
+    self::include_pluggables('wp_get_current_user');
+    $current_user = wp_get_current_user();
 
     if(isset($current_user->ID) && $current_user->ID > 0) {
       return new MeprUser($current_user->ID);
@@ -1070,6 +1644,11 @@ class MeprUtils {
     else {
       return false;
     }
+  }
+
+  public static function get_current_user_id() {
+    self::include_pluggables('wp_get_current_user');
+    return get_current_user_id();
   }
 
   public static function get_user_by($field = 'login', $value) {
@@ -1087,6 +1666,9 @@ class MeprUtils {
 
   public static function wp_mail($recipient, $subject, $message, $headers = '') {
     self::include_pluggables('wp_mail');
+
+    // Parse shortcodes in the message body
+    $message = do_shortcode($message);
 
     add_filter('wp_mail_from_name', 'MeprUtils::set_mail_from_name');
     add_filter('wp_mail_from',      'MeprUtils::set_mail_from_email');
@@ -1116,6 +1698,12 @@ class MeprUtils {
       }
 
       wp_mail($to, $subject, $message, $headers);
+
+      //Just leaving these here as I need to debug this shiz enough, it would save me some time
+      /*
+      global $phpmailer;
+      var_dump($phpmailer);
+      */
     }
 
     remove_filter('wp_mail_from',      'MeprUtils::set_mail_from_name');
@@ -1174,9 +1762,10 @@ class MeprUtils {
     self::include_pluggables('wp_redirect');
 
     //Don't cache redirects YO!
-    header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
-    header("Cache-Control: post-check=0, pre-check=0", false);
+    header("Cache-Control: private, no-cache, no-store, max-age=0, must-revalidate, proxy-revalidate");
+    // header("Cache-Control: post-check=0, pre-check=0", false);
     header("Pragma: no-cache");
+    header("Expires: Fri, 01 Jan 2016 00:00:01 GMT", true); //Some date in the past
     wp_redirect($location, $status);
 
     exit;
@@ -1190,8 +1779,17 @@ class MeprUtils {
 
   public static function wp_check_password($user, $password) {
     self::include_pluggables('wp_check_password');
-
     return wp_check_password($password, $user->data->user_pass, $user->ID);
+  }
+
+  public static function wp_new_user_notification($user_id, $deprecated=null, $notify='') {
+    self::include_pluggables('wp_new_user_notification');
+    return wp_new_user_notification($user_id, $deprecated, $notify);
+  }
+
+  public static function check_ajax_referer($slug,$param) {
+    self::include_pluggables('check_ajax_referer');
+    return check_ajax_referer($slug,$param);
   }
 
   public static function include_pluggables($function_name) {
@@ -1224,11 +1822,21 @@ class MeprUtils {
   }
 
   public static function is_post_request() {
-    return (strtolower($_SERVER['REQUEST_METHOD']) == 'post');
+    if(isset($_SERVER['REQUEST_METHOD'])) {
+      return (strtolower($_SERVER['REQUEST_METHOD']) == 'post');
+    }
+    else {
+      return (isset($_POST) && !empty($_POST));
+    }
   }
 
   public static function is_get_request() {
-    return (strtolower($_SERVER['REQUEST_METHOD']) == 'get');
+    if(isset($_SERVER['REQUEST_METHOD'])) {
+      return (strtolower($_SERVER['REQUEST_METHOD']) == 'get');
+    }
+    else {
+      return (!isset($_POST) || empty($_POST));
+    }
   }
 
   /* Pieces together the current url like a champ */
@@ -1243,6 +1851,61 @@ class MeprUtils {
     }
 
     return $url;
+  }
+
+  public static function get_formatted_usermeta($user_id) {
+    $mepr_options = MeprOptions::fetch();
+    $ums = get_user_meta($user_id);
+    $new_ums = array();
+    $return_ugly_val = MeprHooks::apply_filters('mepr-return-ugly-usermeta-vals', false);
+
+    if(!empty($ums)) {
+      foreach($ums as $umkey => $um) {
+        // Only support first val for now and yes some of these will be serialized values
+        $val = maybe_unserialize($um[0]);
+        $strval = $val;
+
+        if(is_array($val)) { //Handle array type custom fields like multi-select, checkboxes etc we'll unsanitize the vals
+          if(!empty($val)) {
+            foreach($val as $i => $k) {
+              if(is_int($i)) { //Multiselects (indexed array)
+                if(!$return_ugly_val) { $k = self::unsanitize_title($k); }
+                $strval = (is_array($strval))?"{$k}":$strval.", {$k}";
+              }
+              else { //Checkboxes (associative array)
+                if(!$return_ugly_val) { $i = self::unsanitize_title($i); }
+                $strval = (is_array($strval))?"{$i}":$strval.", {$i}";
+              }
+            }
+          }
+          else { //convert empty array to empty string
+            $strval = '';
+          }
+        }
+        elseif($val == 'on') { //Single checkbox
+          $strval = _x('Checked', 'ui', 'memberpress');
+        }
+        elseif($return_ugly_val) { //Return the ugly value
+          $strval = $val;
+        }
+        else { //We need to check for checkboxes and radios and match them up with MP custom fields
+          $mepr_field = $mepr_options->get_custom_field($umkey);
+
+          if(!is_null($mepr_field) && !empty($mepr_field->options)) {
+            foreach($mepr_field->options as $option) {
+              if($option->option_value == $val) {
+                $strval = stripslashes($option->option_name);
+                break; //Found a match, so stop here
+              }
+            }
+          }
+        }
+
+        $new_ums["{$umkey}"] = $strval;
+      }
+    }
+
+    return $new_ums;
   }
 
   // purely for backwards compatibility (deprecated)

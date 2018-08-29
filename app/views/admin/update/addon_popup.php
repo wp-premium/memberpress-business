@@ -9,7 +9,7 @@
     <p><?php printf(__('And good for you, it looks like you\'ve already got the %1$s Add-on installed. Just click the "Activate %2$s Add-on" button below and you\'ll get all these features back now.', 'memberpress'), $a->name, $a->name); ?></p>
   <?php else: ?>
     <p><?php printf(__('Luckily it\'s easy to get these features back now. Just click the "Install %s Add-on" button below.', 'memberpress'), $a->name); ?></p>
-    <p><?php printf(__('If you have problems with the auto-install please refer to %1$sthe user manual%2$s for manual install instructions.', 'memberpress'), '<a href="https://www.memberpress.com/marketing/" target="_blank">', '</a>'); ?></p>
+    <p><?php printf(__('If you have problems with the auto-install please refer to %1$sthe user manual%2$s for manual install instructions.', 'memberpress'), '<a href="http://memberpress.helpscoutdocs.com/article/93-where-to-find-and-install-email-marketing-addons" target="_blank">', '</a>'); ?></p>
   <?php endif; ?>
   <br/>
   <center>

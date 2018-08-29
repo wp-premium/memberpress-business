@@ -1,4 +1,8 @@
 /* CSS for plans here */
+.mepr-price-menu.minimal_vertical .mepr-price-box .mepr-most-popular {
+  display: none;
+}
+
 .mepr-price-menu.minimal_vertical {
   width: 100%;
   margin: 0;

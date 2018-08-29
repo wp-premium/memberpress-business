@@ -67,7 +67,9 @@
                id="<?php echo MeprProduct::$allow_renewal_str; ?>"
                name="<?php echo MeprProduct::$allow_renewal_str; ?>"
                <?php checked($product->allow_renewal); ?> />
-        <?php _e('Allow Renewals', 'memberpress'); ?>
+        <label for="<?php echo MeprProduct::$allow_renewal_str; ?>">
+          <?php _e('Allow Renewals', 'memberpress'); ?>
+        </label>
       </p>
     </div>
     <div class="mepr-product-expire-fixed mepr-sub-box">
@@ -81,6 +83,15 @@
                name="<?php echo MeprProduct::$expire_fixed_str; ?>"
                id="<?php echo MeprProduct::$expire_fixed_str; ?>"
                value="<?php echo $product->expire_fixed; ?>" />
+      </p>
+      <p>
+        <input type="checkbox"
+               id="<?php echo MeprProduct::$allow_renewal_str; ?>-fixed"
+               name="<?php echo MeprProduct::$allow_renewal_str; ?>-fixed"
+               <?php checked($product->allow_renewal); ?> />
+        <label for="<?php echo MeprProduct::$allow_renewal_str; ?>-fixed">
+          <?php _e('Allow Annual Renewals', 'memberpress'); ?>
+        </label>
       </p>
     </div>
   </div>
@@ -106,8 +117,8 @@
       <p>
         <input type="checkbox" name="<?php echo MeprProduct::$trial_str; ?>" id="<?php echo MeprProduct::$trial_str; ?>" <?php echo $checked; ?> /> <label for="_mepr_product_trial"><?php _e('Trial Period', 'memberpress'); ?></label>
         <?php MeprAppHelper::info_tooltip( 'mepr-product-trial-days',
-                                           __('Trial Days Price Text', 'memberpress'),
-                                           __('Day count values here that are multiples of 365 will show as years, muplitples of 30 will show as months, multiples of 7 will show as weeks ... otherwise the trial will show up as days.', 'memberpress') ); ?>
+                                           __('Trial Period Info', 'memberpress'),
+                                           __('The trial period is the number of days listed in the "Trial Duration" field. A 1 month trial would be 30 days, 2 months would be 60. Similarly, 1 year would be 365 and 2 years would be 730.', 'memberpress') ); ?>
         <div id="disable-trial-notice" class="mepr-meta-sub-pane" data-value="<?php _e('Price must be greater than 0.00 to choose recurring subscriptions.', 'memberpress'); ?>" class="mepr_hidden"></div>
       </p>
       <div class="mepr-product-trial-hidden mepr-sub-box">
@@ -123,6 +134,14 @@
         </p>
         <p>
           <input name="<?php echo MeprProduct::$trial_amount_str; ?>" id="<?php echo MeprProduct::$trial_amount_str; ?>" size="7" type="text" value="<?php echo MeprUtils::format_float($product->trial_amount); ?>" />
+        </p>
+        <p>
+          <input type="checkbox" name="<?php echo MeprProduct::$trial_once_str; ?>" id="<?php echo MeprProduct::$trial_once_str; ?>" <?php checked($product->trial_once); ?> /> <label for="<?php echo MeprProduct::$trial_once_str; ?>"><?php _e('Allow Only One Trial', 'memberpress'); ?></label>
+          <?php MeprAppHelper::info_tooltip(
+            'mepr-product-trial-once',
+            __('Restrict Trial to One Per Member', 'memberpress'),
+            __('When checked, this option will allow a member to go through the trial once. If they cancel their subscription and try to re-subscribe then they\'ll be able to do so but without the trial. Note: Coupons set to override a membership trial will still work even with this checked.', 'memberpress')
+          ); ?>
         </p>
       </div>
     </div>
@@ -145,7 +164,7 @@
         <p>
           <select name="<?php echo MeprProduct::$limit_cycles_action_str; ?>" id="<?php echo MeprProduct::$limit_cycles_action_str; ?>">
             <option value="expire" <?php selected('expire',$product->limit_cycles_action); ?>><?php _e('Expire Access','memberpress'); ?></option>
-            <option value="lifetime" <?php selected('lifetime',$product->limit_cycles_action); ?>><?php _e('Lifetime Acess','memberpress'); ?></option>
+            <option value="lifetime" <?php selected('lifetime',$product->limit_cycles_action); ?>><?php _e('Lifetime Access','memberpress'); ?></option>
           </select>
         </p>
       </div>

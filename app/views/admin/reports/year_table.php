@@ -25,42 +25,44 @@
       $taxes = (float)MeprReports::get_taxes($r->month, false, $curr_year, $curr_product);
       $refunds = (float)MeprReports::get_refunds($r->month, false, $curr_year, $curr_product);
       $collected = (float)MeprReports::get_collected($r->month, false, $curr_year, $curr_product);
+      $all = (float)($revenue + $refunds + $taxes);
       $alternate = ( $row_index++ % 2 ? '' : 'alternate' );
       $r->day = '';
     ?>
       <tr class="<?php echo $alternate; ?>">
         <td>
-          <a href="<?php echo admin_url('admin.php?page=memberpress-trans&product='.$curr_product.'&month='.$r->month.'&day='.$r->day.'&year='.$curr_year); ?>">
+          <a href="<?php echo wp_nonce_url(admin_url('admin.php?page=memberpress-trans&membership='.$curr_product.'&month='.$r->month.'&day='.$r->day.'&year='.$curr_year), 'customize_transactions', 'mepr_transactions_nonce'); ?>">
             <?php echo MeprReports::make_table_date($r->month, 1, $curr_year, 'm/Y'); ?>
           </a>
         </td>
         <td>
-          <a href="<?php echo admin_url('admin.php?page=memberpress-trans&product='.$curr_product.'&month='.$r->month.'&day='.$r->day.'&year='.$curr_year.'&search=pending'); ?>">
+          <a href="<?php echo wp_nonce_url(admin_url('admin.php?page=memberpress-trans&membership='.$curr_product.'&month='.$r->month.'&day='.$r->day.'&year='.$curr_year.'&status=pending'), 'customize_transactions', 'mepr_transactions_nonce'); ?>">
             <?php echo $r->p; $pTotal += $r->p; ?>
           </a>
         </td>
         <td>
-          <a href="<?php echo admin_url('admin.php?page=memberpress-trans&product='.$curr_product.'&month='.$r->month.'&day='.$r->day.'&year='.$curr_year.'&search=failed'); ?>">
+          <a href="<?php echo wp_nonce_url(admin_url('admin.php?page=memberpress-trans&membership='.$curr_product.'&month='.$r->month.'&day='.$r->day.'&year='.$curr_year.'&status=failed'), 'customize_transactions', 'mepr_transactions_nonce'); ?>">
             <?php echo $r->f; $fTotal += $r->f; ?>
           </a>
         </td>
         <td>
-          <a href="<?php echo admin_url('admin.php?page=memberpress-trans&product='.$curr_product.'&month='.$r->month.'&day='.$r->day.'&year='.$curr_year.'&search=complete'); ?>">
+          <a href="<?php echo wp_nonce_url(admin_url('admin.php?page=memberpress-trans&membership='.$curr_product.'&month='.$r->month.'&day='.$r->day.'&year='.$curr_year.'&status=complete'), 'customize_transactions', 'mepr_transactions_nonce'); ?>">
             <?php echo $r->c; $cTotal += $r->c; ?>
           </a>
         </td>
         <td>
-          <a href="<?php echo admin_url('admin.php?page=memberpress-trans&product='.$curr_product.'&month='.$r->month.'&day='.$r->day.'&year='.$curr_year.'&search=refunded'); ?>">
+          <a href="<?php echo wp_nonce_url(admin_url('admin.php?page=memberpress-trans&membership='.$curr_product.'&month='.$r->month.'&day='.$r->day.'&year='.$curr_year.'&status=refunded'), 'customize_transactions', 'mepr_transactions_nonce'); ?>">
             <?php echo $r->r; $rTotal += $r->r; ?>
           </a>
         </td>
-        <td style="color:green;"><?php echo MeprAppHelper::format_currency(($revenue + $refunds + $taxes),true,false); $revTotal += $revenue; ?></td>
-        <td style="color:red;"><?php echo MeprAppHelper::format_currency($refunds,true,false); $refTotal += $refunds; ?></td>
-        <td style="color:orange;"><?php echo MeprAppHelper::format_currency($taxes,true,false); $taxTotal += $taxes; ?></td>
-        <td style="color:navy;"><?php echo MeprAppHelper::format_currency($revenue,true,false); ?></td>
+        <td <?php if(!empty($all)) { echo 'style="color:green;font-weight:bold;"'; } ?>><?php echo MeprAppHelper::format_currency($all,true,false); $revTotal += $revenue; ?></td>
+        <td <?php if(!empty($refunds)) { echo 'style="color:red;font-weight:bold;"'; } ?>><?php echo MeprAppHelper::format_currency($refunds,true,false); $refTotal += $refunds; ?></td>
+        <td <?php if(!empty($taxes)) { echo 'style="color:orange;font-weight:bold;"'; } ?>><?php echo MeprAppHelper::format_currency($taxes,true,false); $taxTotal += $taxes; ?></td>
+        <td <?php if(!empty($revenue)) { echo 'style="color:navy;font-weight:bold;"'; } ?>><?php echo MeprAppHelper::format_currency($revenue,true,false); ?></td>
       </tr>
     <?php
     }
+    $allTotal = (float)($revTotal + $refTotal + $taxTotal);
     ?>
     </tbody>
     <tfoot>
@@ -70,16 +72,26 @@
         <th><?php echo $fTotal; ?></th>
         <th><?php echo $cTotal; ?></th>
         <th><?php echo $rTotal; ?></th>
-        <th style="color:green;"><?php echo MeprAppHelper::format_currency(($revTotal + $refTotal + $taxTotal),true,false); ?></th>
-        <th style="color:red;"><?php echo MeprAppHelper::format_currency($refTotal,true,false); ?></th>
-        <th style="color:orange;"><?php echo MeprAppHelper::format_currency($taxTotal,true,false); ?></th>
-        <th style="color:navy;"><?php echo MeprAppHelper::format_currency($revTotal,true,false); ?></th>
+        <th <?php if(!empty($allTotal)) { echo 'style="color:green;font-weight:bold;"'; } ?>><?php echo MeprAppHelper::format_currency($allTotal,true,false); ?></th>
+        <th <?php if(!empty($refTotal)) { echo 'style="color:red;font-weight:bold;"'; } ?>><?php echo MeprAppHelper::format_currency($refTotal,true,false); ?></th>
+        <th <?php if(!empty($taxTotal)) { echo 'style="color:orange;font-weight:bold;"'; } ?>><?php echo MeprAppHelper::format_currency($taxTotal,true,false); ?></th>
+        <th <?php if(!empty($revTotal)) { echo 'style="color:navy;font-weight:bold;"'; } ?>><?php echo MeprAppHelper::format_currency($revTotal,true,false); ?></th>
       </tr>
   </tfoot>
 </table>
 <div>&nbsp;</div>
 <div>
-  <a class="button" href="<?php echo admin_url( "admin-ajax.php?action=mepr_export_report&export=yearly&{$_SERVER['QUERY_STRING']}" ); ?>"><?php _e('Export as CSV', 'memberpress'); ?></a>
+  <a class="button" href="<?php
+    echo MeprUtils::admin_url(
+      "admin-ajax.php", // $path
+      array('export_report','mepr_reports_nonce'), // $nonce
+      array( // $add_params
+        'action'=>'mepr_export_report',
+        'export'=>'yearly'
+      ),
+      true, // $include_query_string
+      array('page','month','main-view') // $exclude_params
+    ); ?>"><?php _e('Export as CSV', 'memberpress'); ?></a>
   <?php MeprHooks::do_action('mepr-report-footer','yearly'); ?>
 </div>
 

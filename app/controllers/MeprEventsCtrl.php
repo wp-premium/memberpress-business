@@ -32,6 +32,7 @@ class MeprEventsCtrl extends MeprBaseCtrl {
         $txn instanceof MeprTransaction &&
         (int)$txn->subscription_id > 0 &&
         ($sub = $txn->subscription()) &&
+        $sub->status == MeprSubscription::$cancelled_str &&
         $sub->is_expired() ) {
       MeprEvent::record('subscription-expired', $sub, $txn);
     }

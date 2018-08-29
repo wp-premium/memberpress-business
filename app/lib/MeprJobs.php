@@ -70,15 +70,19 @@ class MeprJobs
         $this->work($job);
         if(isset($job->class)) {
           $obj = MeprJobFactory::fetch($job->class, $job);
+          MeprUtils::debug_log(sprintf(__('Starting Job - %1$s (%2$s): %3$s', 'memberpress'), $job->id, $job->class, MeprUtils::object_to_string($obj)));
           $obj->perform(); // Run the job's perform method
+          MeprUtils::debug_log(sprintf(__('Job Completed - %1$s (%2$s)', 'memberpress'), $job->id, $job->class));
           $this->complete($job); // When we're successful we complete the job
         }
         else {
           $this->fail($job, __('No class was specified in the job config', 'memberpress'));
+          MeprUtils::debug_log(__('Job Failed: No class', 'memberpress'));
         }
       }
       catch(Exception $e) {
         $this->fail($job, $e->getMessage());
+        MeprUtils::debug_log(sprintf(__('Job Failed: %s', 'memberpress'), $e->getMessage()));
       }
     }
   }
@@ -98,7 +102,7 @@ class MeprJobs
       $this->config->status->working, // if status = working or
       $this->config->status->failed, // status = failed and
       $this->config->cleanup->num_retries, // number of tries <= num_retries
-      MeprUtils::mysql_now(),
+      MeprUtils::db_now(),
       $this->config->cleanup->retry_after // and the correct number of seconds since lastrun has elapsed
     );
     $wpdb->query($query);
@@ -109,7 +113,7 @@ class MeprJobs
                  AND TIMESTAMPDIFF(SECOND,lastrun,%s) >= %d";
     $query = $wpdb->prepare( $query, // Delete jobs
       $this->config->status->complete, // which have a status = complete
-      MeprUtils::mysql_now(),
+      MeprUtils::db_now(),
       $this->config->cleanup->delete_completed_after // and the correct number of seconds since lastrun has elapsed
     );
     $wpdb->query($query);
@@ -120,7 +124,7 @@ class MeprJobs
                  AND TIMESTAMPDIFF(SECOND,lastrun,%s) >= %d";
     $query = $wpdb->prepare( $query, // Delete jobs
       $this->config->cleanup->num_retries, // which have only been 'n' retries
-      MeprUtils::mysql_now(),
+      MeprUtils::db_now(),
       $this->config->cleanup->delete_failed_after // and the correct number of seconds since lastrun has elapsed
     );
     $wpdb->query($query);
@@ -138,7 +142,7 @@ class MeprJobs
          AND runtime <= %s
        ORDER BY priority ASC, runtime ASC
     ";
-    $query = $wpdb->prepare( $query, $this->config->status->pending, MeprUtils::mysql_now() );
+    $query = $wpdb->prepare( $query, $this->config->status->pending, MeprUtils::db_now() );
 
     return $wpdb->get_results($query,OBJECT);
   }
@@ -153,7 +157,7 @@ class MeprJobs
                  AND runtime <= %s
                ORDER BY priority ASC, runtime ASC
                LIMIT 1";
-    $query = $wpdb->prepare( $query, $this->config->status->pending, MeprUtils::mysql_now() );
+    $query = $wpdb->prepare( $query, $this->config->status->pending, MeprUtils::db_now() );
 
     return $wpdb->get_row($query,OBJECT);
   }
@@ -175,15 +179,15 @@ class MeprJobs
     if($when==='now') { $when = time(); }
 
     $config = array(
-      'runtime' => date('c',$when),
-      'firstrun' => date('c',$when),
+      'runtime' => gmdate('c', $when),
+      'firstrun' => gmdate('c', $when),
       'priority' => $priority,
       'tries' => 0,
       'class' => $classname,
       'args' => json_encode($args),
       'reason' => '',
       'status' => $this->config->status->pending,
-      'lastrun' => date('c')
+      'lastrun' => gmdate('c')
     );
 
     // returns the job id to dequeue later if necessary
@@ -204,7 +208,7 @@ class MeprJobs
 
     $args = array( 'status' => $this->config->status->working,
                    'tries' => $job->tries + 1,
-                   'lastrun' => date('c') );
+                   'lastrun' => gmdate('c') );
 
     $mepr_db->update_record($mepr_db->jobs, $job->id, $args);
   }
@@ -214,7 +218,7 @@ class MeprJobs
     $mepr_db = new MeprDb();
 
     $args = array( 'status' => $this->config->status->pending,
-                   'runtime' => date('c'),
+                   'runtime' => gmdate('c'),
                    'reason' => $reason );
 
     $mepr_db->update_record($mepr_db->jobs, $job->id, $args);

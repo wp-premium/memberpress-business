@@ -61,6 +61,8 @@ abstract class MeprBaseEmail {
     else
       $body = $this->replace_variables($this->body(),$values);
 
+    $body .= $this->footer();
+
     if(is_null($use_template)) { $use_template = $this->use_template(); }
 
     if( $type == 'html' and $use_template ) {
@@ -74,7 +76,9 @@ abstract class MeprBaseEmail {
 
   public function send($values=array(),$subject=false,$body=false,$use_template=null,$content_type='html') {
     // Used to filter parameters to be searched and replaced in the email subject & body
-    $values = MeprHooks::apply_filters('mepr_email_send_params', $values, $this, $subject, $body);
+    $values  = MeprHooks::apply_filters('mepr_email_send_params',  $values,  $this, $subject, $body  );
+    $body    = MeprHooks::apply_filters('mepr_email_send_body',    $body,    $this, $subject, $values);
+    $subject = MeprHooks::apply_filters('mepr_email_send_subject', $subject, $this, $body,    $values);
 
     $bkg_enabled = get_option('mp-bkg-email-jobs-enabled');
 
@@ -113,8 +117,9 @@ abstract class MeprBaseEmail {
     }
   }
 
-  public function set_html_content_type() {
-    return 'text/html;charset="UTF-8"';
+  public function set_html_content_type($content_type = 'text/html') {
+    // return 'text/html;charset="UTF-8"'; //UTF-8 is breaking internal WP checks
+    return 'text/html';
   }
 
   // This is for some severe multipart mailing
@@ -165,10 +170,36 @@ abstract class MeprBaseEmail {
     return MeprView::get_string('/emails/'.$this->view_name(),$vars);
   }
 
+  private function footer() {
+    $links = $this->footer_links();
+    $links_str = join('&#124;', $links);
+    ob_start();
+    ?>
+      <div id="footer" style="width: 680px; padding: 0px; margin: 0 auto; text-align: center;">
+        <?php echo $links_str; ?>
+      </div>
+    <?php
+
+    return ob_get_clean();
+  }
+
+  private function footer_links() {
+    $mepr_options = MeprOptions::fetch();
+    $links = array();
+
+    if($mepr_options->include_email_privacy_link) {
+      $privacy_policy_page_link = MeprAppHelper::privacy_policy_page_link();
+      if($privacy_policy_page_link !== false) {
+        $links[] = '<a href="' . $privacy_policy_page_link . '">' . __('Privacy Policy', 'memberpress') . '</a>';
+      }
+    }
+
+    return $links;
+  }
+
   abstract public function field_name($field='enabled', $id=false);
 
   // This will vary based on what part of the
   // code is sending out the email
   abstract public function get_stored_field($fieldname);
 }
-

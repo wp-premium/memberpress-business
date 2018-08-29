@@ -13,7 +13,8 @@ var drawReportingCharts = function () {
     type: 'amounts',
     month: month,
     year: year,
-    product: product
+    product: product,
+    report_nonce: MeprReportData.report_nonce
   };
 
   jQuery
@@ -45,7 +46,8 @@ var drawReportingCharts = function () {
     action: 'mepr_year_report',
     type: 'amounts',
     year: year,
-    product: product
+    product: product,
+    report_nonce: MeprReportData.report_nonce
   };
 
   jQuery
@@ -74,7 +76,8 @@ var drawReportingCharts = function () {
     type: 'transactions',
     month: month,
     year: year,
-    product: product
+    product: product,
+    report_nonce: MeprReportData.report_nonce
   };
 
   jQuery
@@ -99,7 +102,8 @@ var drawReportingCharts = function () {
     action: 'mepr_year_report',
     type: 'transactions',
     year: year,
-    product: product
+    product: product,
+    report_nonce: MeprReportData.report_nonce
   };
 
   jQuery
@@ -124,7 +128,8 @@ var drawReportingCharts = function () {
     action: 'mepr_pie_report',
     type: 'monthly',
     month: month,
-    year: year
+    year: year,
+    report_nonce: MeprReportData.report_nonce
   };
 
   jQuery
@@ -145,7 +150,8 @@ var drawReportingCharts = function () {
   args = {
     action: 'mepr_pie_report',
     type: 'yearly',
-    year: year
+    year: year,
+    report_nonce: MeprReportData.report_nonce
   };
 
   jQuery
@@ -165,7 +171,8 @@ var drawReportingCharts = function () {
   //All-Time Pie Chart Totals
   args = {
     action: 'mepr_pie_report',
-    type: 'all-time'
+    type: 'all-time',
+    report_nonce: MeprReportData.report_nonce
   };
 
   jQuery

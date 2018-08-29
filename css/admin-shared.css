@@ -45,9 +45,24 @@
 .cspf-tablenav-spacer {
   display: block;
   width: 100%;
-  line-height: 33px;
+  line-height: 85px;
 }
 
+.search-box {
+  text-align: right !important;
+}
+
+.search-box .search-fields {
+  margin-top: 10px !important;
+  display: block;
+  text-align: right;
+}
+
+.search-box .filter-by {
+  margin-bottom: 10px !important;
+  display: block;
+  text-align: right;
+}
 
 div#table-actions {
   display:block;
@@ -351,6 +366,12 @@ table.mepr-addons-table tr td {
 table.mepr-addons-table tr th {
   font-weight: bold;
   font-size: 120%;
+}
+
+/* Override for simplegrid styles */
+.grid.mepr-left-aligned-grid {
+  margin: 0 !important;
+  padding-left: 0 !important;
 }
 
 @media only screen and (max-width: 1050px) {

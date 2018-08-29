@@ -5,83 +5,120 @@ Integration of bbPress into MemberPress
 */
 class MeprBbPressCtrl extends MeprBaseCtrl {
   public function load_hooks() {
-    //Protect the content directly, should they somehow get a direct link to these
-    add_filter('bbp_get_reply_content', 'MeprBbPressCtrl::bbpress_rule_content', 999999, 2);
-    add_filter('bbp_get_topic_content', 'MeprBbPressCtrl::bbpress_rule_content', 999999, 2);
+    //Used to hide forums & topics
+    add_filter('bbp_get_forum_visibility', 'MeprBbPressCtrl::hide_forums', 11, 2);
+    add_filter('bbp_get_hidden_forum_ids', 'MeprBbPressCtrl::hide_threads');
 
-    //Hide forums/topics from the loop
-    add_action('get_template_part_loop', 'MeprBbPressCtrl::hide_forums_from_loop', 11, 2);
-    add_action('get_template_part_loop', 'MeprBbPressCtrl::hide_topics_from_loop', 11, 2);
-
+    //We're only allowing blocking by forum
     add_filter('mepr-rules-cpts', 'MeprBbPressCtrl::filter_rules_cpts');
+
+    add_action('mepr_account_nav', 'MeprBbPressCtrl::mepr_account_page_links');
+
+    //Don't override bbPress the_content - this is needed when using the forum shortcodes
+    add_filter('mepr-pre-run-rule-content', 'MeprBbPressCtrl::dont_block_the_content', 11, 3);
+    add_filter('is_bbpress', 'MeprBbPressCtrl::dont_redirect_on_shortcode');
   }
 
-  public static function bbpress_rule_content($content, $id) {
-    //We only allow restriction on a per-forum basis currently
-    //So let's get the current forum's id and check if it's protected
-    $forum_id = bbp_get_forum_id();
+  public static function dont_redirect_on_shortcode($bool) {
+    global $wp_query;
 
-    if(!$forum_id) { return $content; }
+    if(empty($wp_query->queried_object->post_content)) { return $bool; }
 
-    $post = get_post($forum_id);
+    if(strpos($wp_query->queried_object->post_content, '[bbp-forum-index') !== false) {
+      $_REQUEST['mepr_is_bbp_shortcode'] = true; //Set this so we can later check for it in hide_forums
+    }
 
-    if(!isset($post) || !MeprRule::is_locked($post)) { return $content; }
-
-    //If we made it here, this is protected
-    return MeprHooks::apply_filters('mepr-bbpress-unauthorized-message', do_shortcode(MeprRulesCtrl::unauthorized_message($post)));
+    return $bool;
   }
 
-  public static function hide_forums_from_loop($slug, $name) {
-    if($name != 'single-forum') { return; }
+  public static function dont_block_the_content($block, $current_post, $uri) {
+    if(function_exists('is_bbpress') && is_bbpress()) { return false; }
+    return $block;
+  }
 
-    //We only allow restriction on a per-forum basis currently
-    //So let's get the current forum's id and check if it's protected
-    $forum_id = bbp_get_forum_id();
+  public static function mepr_account_page_links($user) {
+    if(!class_exists('bbPress')) { return; }
 
-    if(!$forum_id) { return; }
-
-    $post = get_post($forum_id);
-
-    if(!isset($post) || !MeprRule::is_locked($post)) { return; }
-
-    //If we made it here, tihs is protected
     ?>
-    <style type="text/css">
-      #bbp-forum-<?php echo $forum_id; ?> {
-        display:none !important;
-      }
-    </style>
+      <span class="mepr-nav-item mepr_bbpress_subscriptions">
+        <a href="<?php echo bbp_user_profile_url(bbp_get_current_user_id()); ?>" id="mepr-account-bbpress-subscriptions"><?php _e('Forum Profile', 'memberpress'); ?></a>
+      </span>
     <?php
   }
 
-  public static function hide_topics_from_loop($slug, $name) {
-    if($name != 'single-topic') { return; }
+  public static function hide_threads($ids) {
+    global $wpdb;
 
-    //We only allow restriction on a per-forum basis currently
-    //So let's get the current forum's id and check if it's protected
-    $forum_id = bbp_get_forum_id();
-    $topic_id = bbp_get_topic_id();
+    $all_forums = $wpdb->get_results("SELECT ID FROM {$wpdb->posts} WHERE post_type = 'forum'");
+    $call       = function_exists('debug_backtrace')?debug_backtrace():array();
+    $to_hide    = array();
 
-    if(!$forum_id) { return; }
+    if(!empty($all_forums)) {
+      foreach($all_forums as $forum) {
+        $forum = get_post($forum->ID);
 
-    $post = get_post($forum_id);
-
-    if(!isset($post) || !MeprRule::is_locked($post)) { return; }
-
-    //If we made it here, tihs is protected
-    ?>
-    <style>
-      #bbp-topic-<?php echo $topic_id; ?> {
-        display:none !important;
+        if(MeprRule::is_locked($forum)) {
+          $to_hide[] = $forum->ID;
+        }
       }
-    </style>
-    <?php
+    }
+
+    foreach($call as $c) {
+      // We only want to hide in indexes or searches for now
+      if( $c['function'] == 'display_topic_index' ||
+          $c['function'] == 'display_search' ) {
+        $ids = array_merge($ids, $to_hide);
+      }
+    }
+
+    return $ids;
+  }
+
+  //Used mostly for redirecting to the login or unauthorized page if the current forum is locked
+  public static function hide_forums($status, $forum_id) {
+    if(isset($_REQUEST['mepr_is_bbp_shortcode'])) { return $status; }
+
+    static $already_here;
+    if(isset($already_here) && $already_here) { return $status; }
+    $already_here = true;
+
+    $mepr_options = MeprOptions::fetch();
+    $forum        = get_post($forum_id);
+    $uri          = urlencode(esc_url($_SERVER['REQUEST_URI']));
+
+    $actual_forum_id = bbp_get_forum_id();
+    $forum = get_post($actual_forum_id);
+
+    //Not a singular view, then let's bail
+    if(!is_singular()) { return $status; }
+
+    //Let moderators and keymasters see everything
+    if(current_user_can('edit_others_topics')) { return $status; }
+
+    if(!isset($forum)) { return $status; }
+
+    if(MeprRule::is_locked($forum)) {
+      if(!headers_sent()) {
+        if($mepr_options->redirect_on_unauthorized) {
+          $delim = MeprAppCtrl::get_param_delimiter_char($mepr_options->unauthorized_redirect_url);
+          $redirect_to = "{$mepr_options->unauthorized_redirect_url}{$delim}mepr-unauth-page={$forum->ID}&redirect_to={$uri}";
+        }
+        else {
+          $redirect_to = $mepr_options->login_page_url("action=mepr_unauthorized&mepr-unauth-page={$forum->ID}&redirect_to=".$uri);
+          $redirect_to = (MeprUtils::is_ssl())?str_replace('http:', 'https:', $redirect_to):$redirect_to;
+        }
+        MeprUtils::wp_redirect($redirect_to);
+        exit;
+      }
+      else {
+        $status = 'hidden';
+      }
+    }
+
+    return $status;
   }
 
   public static function filter_rules_cpts($cpts) {
-    //Since we only allow per-forum restriction,
-    //let's unset topics and replies from showing up
-    //in the Rules drop-down list
     unset($cpts['reply']);
     unset($cpts['topic']);
 

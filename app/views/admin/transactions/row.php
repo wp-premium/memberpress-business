@@ -42,7 +42,13 @@ if(!empty($records))
           break;
         case 'col_user_login':
           ?>
-          <td <?php echo $attributes; ?>><a href="<?php echo $editlink; ?>" title="<?php _e("View member's profile", 'memberpress'); ?>"><?php echo ((int)$rec->user_id)?stripslashes($rec->user_login):__('Deleted', 'memberpress'); ?></a></td>
+          <td <?php echo $attributes; ?>>
+            <?php if(!empty($rec->user_id)): ?>
+              <a href="<?php echo $editlink; ?>" title="<?php _e("View member's profile", 'memberpress'); ?>"><?php echo stripslashes($rec->user_login); ?></a>
+            <?php else: ?>
+              <?php echo __('Deleted', 'memberpress'); ?>
+            <?php endif; ?>
+          </td>
           <?php
           break;
         case 'col_product':
@@ -69,32 +75,39 @@ if(!empty($records))
             <a href="<?php echo admin_url('admin.php?page=memberpress-trans&action=edit&id='.$rec->id); ?>" title="<?php _e('Edit transaction', 'memberpress'); ?>"><b><?php echo $rec->trans_num; ?></b></a> <img src="<?php echo MEPR_IMAGES_URL . '/square-loader.gif'; ?>" alt="<?php _e('Loading...', 'memberpress'); ?>" class="mepr_loader" />
             <div class="mepr-row-actions">
               <a href="<?php echo admin_url('admin.php?page=memberpress-trans&action=edit&id='.$rec->id); ?>" title="<?php _e('Edit transaction', 'memberpress'); ?>"><?php _e('Edit','memberpress'); ?></a> |
-              <a href="#" class="mepr_resend_txn_email" data-value="<?php echo $rec->id; ?>"><?php _e('Send Receipt', 'memberpress'); ?></a> |
+              <a href="" class="mepr_resend_txn_email" data-value="<?php echo $rec->id; ?>"><?php _e('Send Receipt', 'memberpress'); ?></a> |
               <?php
               $txn = new MeprTransaction($rec->id);
               if($txn->can('process-refunds')):
               ?>
                 <span class="mepr-refund-txn-action">
-                  <a href="#" class="mepr-refund-txn" title="<?php _e('Refund Transaction', 'memberpress'); ?>" data-value="<?php echo $rec->id; ?>"><?php _e('Refund', 'memberpress'); ?></a> |
+                  <a href="" class="mepr-refund-txn" title="<?php _e('Refund Transaction', 'memberpress'); ?>" data-value="<?php echo $rec->id; ?>"><?php _e('Refund', 'memberpress'); ?></a> |
                 </span>
               <?php
+                if(($sub = $txn->subscription()) && $sub->status==MeprSubscription::$active_str and $sub->can('cancel-subscriptions')):
+                ?>
+                  <span class="mepr-refund-txn-and-cancel-sub-action">
+                    <a href="" class="mepr-refund-txn-and-cancel-sub" title="<?php _e('Refund Transaction and Cancel Subscription', 'memberpress'); ?>" data-value="<?php echo $rec->id; ?>"><?php _e('Refund & Cancel', 'memberpress'); ?></a> |
+                  </span>
+                <?php
+                endif;
               endif;
               ?>
-                <a href="#" class="remove-txn-row" title="<?php _e('Delete Transaction', 'memberpress'); ?>" data-value="<?php echo $rec->id; ?>"><?php _e('Delete', 'memberpress'); ?></a>
+                <a href="" class="remove-txn-row" title="<?php _e('Delete Transaction', 'memberpress'); ?>" data-value="<?php echo $rec->id; ?>"><?php _e('Delete', 'memberpress'); ?></a>
             </div>
           </td>
           <?php
           break;
         case 'col_subscr_id':
+          ?><td <?php echo $attributes; ?>><?php
           if(!empty($rec->sub_id)):
             ?>
-            <td <?php echo $attributes; ?>><a href="<?php echo admin_url('admin.php?page=memberpress-subscriptions&subscription='.$rec->sub_id); ?>" title="<?php _e('View Subscription', 'memberpress'); ?>"><?php echo $rec->subscr_id; ?></a></td>
+            <a href="<?php echo admin_url('admin.php?page=memberpress-subscriptions&subscription='.$rec->sub_id); ?>" title="<?php _e('View Subscription', 'memberpress'); ?>"><?php echo $rec->subscr_id; ?></a>
             <?php
           else:
-            ?>
-            <td <?php echo $attributes; ?>><a href="<?php echo admin_url('admin.php?page=memberpress-subscriptions&lifetime=1&subscription='.$rec->id); ?>" title="<?php _e('View Subscription', 'memberpress'); ?>"><?php _e('None','memberpress'); ?></a></td>
-            <?php
+            _e('None','memberpress');
           endif;
+          ?></td><?php
           break;
         case 'col_net':
           ?>
@@ -118,7 +131,7 @@ if(!empty($records))
           ?>
           <td <?php echo $attributes; ?>>
             <div class="status_initial status_initial_<?php echo $rec->id; ?>" data-value="<?php echo $rec->id; ?>">
-              <a href="#" title="<?php _e("Change transaction's status", 'memberpress'); ?>"><?php echo stripslashes(MeprAppHelper::human_readable_status($rec->status)); ?></a>
+              <a href="" title="<?php _e("Change transaction's status", 'memberpress'); ?>"><?php echo stripslashes(MeprAppHelper::human_readable_status($rec->status)); ?></a>
             </div>
             <div class="status_editable status_editable_<?php echo $rec->id; ?>">
               <?php
@@ -132,8 +145,8 @@ if(!empty($records))
                 <option value="refunded" <?php echo (stripslashes($rec->status) == 'refunded')?'selected="selected"':''; ?>><?php _e('Refunded', 'memberpress'); ?></option>
                 <option value="complete" <?php echo (stripslashes($rec->status) == 'complete')?'selected="selected"':''; ?>><?php _e('Complete', 'memberpress'); ?></option>
               </select><br/>
-              <a href="#" class="button status_save" data-value="<?php echo $rec->id; ?>"><?php _e('Save', 'memberpress'); ?></a>
-              <a href="#" class="button cancel_change" data-value="<?php echo $rec->id; ?>"><?php _e('Cancel', 'memberpress'); ?></a>
+              <a href="" class="button status_save" data-value="<?php echo $rec->id; ?>"><?php _e('Save', 'memberpress'); ?></a>
+              <a href="" class="button cancel_change" data-value="<?php echo $rec->id; ?>"><?php _e('Cancel', 'memberpress'); ?></a>
             </div>
             <div class="status_saving status_saving_<?php echo $rec->id; ?>">
               <?php _e('Saving ...', 'memberpress'); ?>
@@ -142,13 +155,21 @@ if(!empty($records))
           <?php
           break;
         case 'col_propername':
-          if(empty($rec->lname))
-            $rec->lname = __('Empty', 'memberpress');
-          if(empty($rec->fname))
-            $rec->fname = __('Empty', 'memberpress');
+          if(empty($rec->first_name) && empty($rec->last_name)) {
+            $full_name = __('Unknown', 'memberpress');
+          }
+          else if(empty($rec->first_name) && !empty($rec->last_name)) {
+            $full_name = stripslashes($rec->last_name);
+          }
+          else if(!empty($rec->first_name) && empty($rec->last_name)) {
+            $full_name = stripslashes($rec->first_name);
+          }
+          else {
+            $full_name = stripslashes($rec->last_name).', '.stripslashes($rec->first_name);
+          }
           ?>
           <td <?php echo $attributes; ?>>
-            <?php echo stripslashes($rec->lname).', '.stripslashes($rec->fname); ?>
+            <?php echo $full_name; ?>
           </td>
           <?php
           break;

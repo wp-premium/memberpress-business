@@ -1,10 +1,11 @@
 @font-face {
   font-family: 'memberpress';
-  src: url('../font/memberpress.eot?23121444');
-  src: url('../font/memberpress.eot?23121444#iefix') format('embedded-opentype'),
-       url('../font/memberpress.woff?23121444') format('woff'),
-       url('../font/memberpress.ttf?23121444') format('truetype'),
-       url('../font/memberpress.svg?23121444#memberpress') format('svg');
+  src: url('../font/memberpress.eot?28302931');
+  src: url('../font/memberpress.eot?28302931#iefix') format('embedded-opentype'),
+       url('../font/memberpress.woff2?28302931') format('woff2'),
+       url('../font/memberpress.woff?28302931') format('woff'),
+       url('../font/memberpress.ttf?28302931') format('truetype'),
+       url('../font/memberpress.svg?28302931#memberpress') format('svg');
   font-weight: normal;
   font-style: normal;
 }
@@ -14,7 +15,7 @@
 @media screen and (-webkit-min-device-pixel-ratio:0) {
   @font-face {
     font-family: 'memberpress';
-    src: url('../font/memberpress.svg?23121444#memberpress') format('svg');
+    src: url('../font/memberpress.svg?28302931#memberpress') format('svg');
   }
 }
 */
@@ -102,12 +103,13 @@
 .mp-icon-download:before { content: '\e82d'; } /* '' */
 .mp-icon-heart:before { content: '\e82e'; } /* '' */
 .mp-icon-heart-empty:before { content: '\e82f'; } /* '' */
-.mp-icon-level-up-1:before { content: '\e830'; } /* '' */
-.mp-icon-level-down-1:before { content: '\e831'; } /* '' */
+.mp-icon-level-up:before { content: '\e830'; } /* '' */
+.mp-icon-level-down:before { content: '\e831'; } /* '' */
 .mp-icon-down:before { content: '\e832'; } /* '' */
 .mp-icon-left:before { content: '\e833'; } /* '' */
 .mp-icon-right:before { content: '\e834'; } /* '' */
 .mp-icon-up:before { content: '\e835'; } /* '' */
-.mp-icon-level-down:before { content: '\e836'; } /* '' */
-.mp-icon-level-up:before { content: '\e837'; } /* '' */
+.mp-icon-level-down-1:before { content: '\e836'; } /* '' */
+.mp-icon-level-up-1:before { content: '\e837'; } /* '' */
 .mp-icon-users-1:before { content: '\e838'; } /* '' */
+.mp-icon-logo:before { content: '\e839'; } /* '' */

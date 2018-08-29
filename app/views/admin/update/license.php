@@ -45,4 +45,11 @@
   <?php MeprView::render('/admin/update/edge_updates', get_defined_vars()); ?>
   <br/>
   <div id="mepr-version-string"><?php printf(__("You're currently running version %s of MemberPress", 'memberpress'), '<b>'.MEPR_VERSION.'</b>'); ?></div>
+  <br/>
+  <?php
+  /*
+  <div id="mepr-rollback-version" class="button"><a href="<?php echo MeprUpdateCtrl::rollback_url(); ?>" onclick="confirm('<?php _e('Are you sure you want to rollback MemberPress?', 'memberpress'); ?>');"><?php _e('Rollback to Previous Version', 'memberpress'); ?></a></div>
+  */
+  ?>
 <?php endif; ?>
+<?php MeprHooks::do_action('mepr_activate_license_page'); ?>

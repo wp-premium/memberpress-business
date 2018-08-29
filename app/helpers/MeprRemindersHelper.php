@@ -104,5 +104,30 @@ class MeprRemindersHelper {
 
     return $lookup[ $reminder->trigger_event][$reminder->trigger_timing][$field];
   }
-}
 
+  public static function products_multiselect($field_name, $selected) {
+    $formatted = array();
+
+    $all_products = MeprCptModel::all('MeprProduct');
+
+    foreach($all_products as $prd) {
+      $formatted[$prd->ID] = $prd->post_title;
+    }
+
+    //Empty array means ALL products should be selected for backwards compat
+    if(!is_array($selected) || empty($selected)) {
+      $selected = array();
+    }
+
+    ?>
+      <select name="<?php echo $field_name; ?>[]" id="<?php echo $field_name; ?>" class="mepr-multi-select" multiple="true">
+      <?php foreach($formatted as $id => $name): ?>
+        <option value="<?php echo $id; ?>" <?php selected((empty($selected) || in_array($id, $selected))); ?>><?php echo $name; ?>&nbsp;</option>
+      <?php endforeach; ?>
+      </select>
+      <span class="description">
+        <small><?php _e('Hold the Control Key (Command Key on the Mac) in order to select or deselect multiple memberships', 'memberpress'); ?></small>
+      </span>
+    <?php
+  }
+} //End Class

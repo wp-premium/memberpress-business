@@ -22,5 +22,13 @@ jQuery(document).ready(function($) {
     $('#mepr-reminder-emails').css("background-color","#fffbcc");
     $('#mepr-reminder-emails').animate({ "background-color": "none" }, 2000);
   });
-});
 
+  if($('#_mepr_reminder_filter_products_str').is(":checked")) {
+    $('#mepr-reminder-products-hidden').show();
+  } else {
+    $('#mepr-reminder-products-hidden').hide();
+  }
+  $('#_mepr_reminder_filter_products_str').click(function() {
+    $('#mepr-reminder-products-hidden').slideToggle('fast');
+  });
+});

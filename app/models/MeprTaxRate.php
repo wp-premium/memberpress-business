@@ -3,10 +3,26 @@ if(!defined('ABSPATH')) {die('You are not allowed to call this page directly.');
 
 class MeprTaxRate extends MeprBaseModel {
 
-  public function __construct($id = null) {
-    if(!is_null($id)) {
-      $this->rec = (object)self::get_one($id);
+  public function __construct($obj = null) {
+    $this->initialize(
+      array(
+        'id' => 0,
+        'tax_country' => '',
+        'tax_state' => '',
+        'tax_rate' => 0.00,
+        'tax_desc' => '',
+        'tax_priority' => 0,
+        'tax_compound' => 0,
+        'tax_shipping' => 1,
+        'tax_order' => 0,
+        'tax_class' => 'standard',
+        'cities' => array(),
+        'postcodes' => array(),
+      ),
+      $obj
+    );
 
+    if(is_integer($obj) && $obj > 0) {
       $this->rec->cities = array();
       $this->rec->postcodes = array();
 
@@ -23,27 +39,6 @@ class MeprTaxRate extends MeprBaseModel {
         }
       }
     }
-    else {
-      $this->rec = (object)array(
-        'id' => 0,
-        'tax_country' => '',
-        'tax_state' => '',
-        'tax_rate' => 0.00,
-        'tax_desc' => '',
-        'tax_priority' => 0,
-        'tax_compound' => 0,
-        'tax_shipping' => 1,
-        'tax_order' => 0,
-        'tax_class' => 'standard',
-        'cities' => array(),
-        'postcodes' => array()
-      );
-    }
-  }
-
-  public function load( $rec ) {
-    $this->rec = (object)array_merge((array)$this->rec, (array)$rec);
-    $this->prepare_fields();
   }
 
   public static function get_one($id, $return_type = OBJECT) {
@@ -187,12 +182,16 @@ class MeprTaxRate extends MeprBaseModel {
   }
 
   public static function destroy_all() {
+    global $wpdb;
     $tax_rates = self::get_all();
 
     foreach($tax_rates as $tr) {
       $obj = new MeprTaxRate($tr->id);
       $obj->destroy();
     }
+
+    //We should prolly clear out all transients here yo!
+    $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '%_mepr_tax_rate_id_%'");
   }
 
   public function store() {
@@ -265,7 +264,7 @@ class MeprTaxRate extends MeprBaseModel {
     }
 
     $tax_rate = new MeprTaxRate();
-    $tax_rate->load($tax_rate_info);
+    $tax_rate->load_from_array($tax_rate_info);
     $tax_rate->store();
   }
 

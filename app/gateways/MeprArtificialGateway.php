@@ -2,6 +2,7 @@
 if(!defined('ABSPATH')) {die('You are not allowed to call this page directly.');}
 
 class MeprArtificialGateway extends MeprBaseRealGateway {
+  public static $has_spc_form = false;
   /** Used in the view to identify the gateway */
   public function __construct() {
     $this->name = __('Offline Payment', 'memberpress');
@@ -59,6 +60,25 @@ class MeprArtificialGateway extends MeprBaseRealGateway {
     //$this->recurrence_type = $this->settings->recurrence_type;
   }
 
+  //Used for capturing offline gateway events
+  public static function capture_txn_status_for_events($txn) {
+    $mepr_options = MeprOptions::fetch();
+    $gateway = $mepr_options->payment_method($txn->gateway);
+
+    if(self::event_exists_already($txn)) { return; }
+
+    if($gateway !== false && $gateway->settings->gateway == 'MeprArtificialGateway') {
+      MeprEvent::record('offline-payment-'.$txn->status, $txn);
+    }
+  }
+
+  public static function event_exists_already($txn) {
+    global $wpdb;
+    $mepr_db = new MeprDb();
+
+    return $wpdb->get_results("SELECT * FROM {$mepr_db->events} WHERE event = 'offline-payment-{$txn->status}' AND evt_id = {$txn->id} AND evt_id_type = 'transactions'");
+  }
+
   /** Used to send data to a given payment gateway. In gateways which redirect
     * before this step is necessary this method should just be left blank.
     */
@@ -73,15 +93,13 @@ class MeprArtificialGateway extends MeprBaseRealGateway {
     $upgrade = $txn->is_upgrade();
     $downgrade = $txn->is_downgrade();
 
-    $txn->maybe_cancel_old_sub();
+    $event_txn = $txn->maybe_cancel_old_sub();
 
     if($upgrade) {
-      $this->upgraded_sub($txn);
-      $this->send_upgraded_txn_notices($txn);
+      $this->upgraded_sub($txn, $event_txn);
     }
     elseif($downgrade) {
-      $this->downgraded_sub($txn);
-      $this->send_downgraded_txn_notices($txn);
+      $this->downgraded_sub($txn, $event_txn);
     }
     else {
       $this->new_sub($txn);
@@ -92,12 +110,12 @@ class MeprArtificialGateway extends MeprBaseRealGateway {
 
     if(!$this->settings->manually_complete == 'on' and !$this->settings->manually_complete == true) {
       $txn->status = MeprTransaction::$complete_str;
-      $this->send_transaction_receipt_notices($txn);
+      MeprUtils::send_transaction_receipt_notices($txn);
     }
 
     $txn->store();
 
-    $this->send_signup_notices($txn);
+    MeprUtils::send_signup_notices($txn);
 
     return $txn;
   }
@@ -162,48 +180,45 @@ class MeprArtificialGateway extends MeprBaseRealGateway {
     // no automated recurring profiles when paying offline
     $sub->subscr_id = 'ts_' . uniqid();
     $sub->status = MeprSubscription::$active_str;
-    $sub->created_at = date('c');
+    $sub->created_at = gmdate('c');
     $sub->gateway = $this->id;
 
     //If this subscription has a paid trail, we need to change the price of this transaction to the trial price duh
     if($sub->trial) {
       $txn->set_subtotal(MeprUtils::format_float($sub->trial_amount));
       $expires_ts = time() + MeprUtils::days($sub->trial_days);
-      $txn->expires_at = date('c', $expires_ts);
+      $txn->expires_at = gmdate('c', $expires_ts);
     }
 
     // This will only work before maybe_cancel_old_sub is run
     $upgrade = $sub->is_upgrade();
     $downgrade = $sub->is_downgrade();
 
-    $sub->maybe_cancel_old_sub();
+    $event_txn = $sub->maybe_cancel_old_sub();
 
     if($upgrade) {
-      $this->upgraded_sub($sub);
-      $this->send_upgraded_sub_notices($sub);
+      $this->upgraded_sub($sub, $event_txn);
     }
     else if($downgrade) {
-      $this->downgraded_sub($sub);
-      $this->send_downgraded_sub_notices($sub);
+      $this->downgraded_sub($sub, $event_txn);
     }
     else {
-      $this->new_sub($sub);
-      $this->send_new_sub_notices($sub);
+      $this->new_sub($sub, true);
     }
 
     $sub->store();
 
     $txn->gateway = $this->id;
     $txn->trans_num = 't_' . uniqid();
+    $txn->store();
 
     if(!$this->settings->manually_complete == 'on' and !$this->settings->manually_complete == true) {
       $txn->status = MeprTransaction::$complete_str;
-      $this->send_transaction_receipt_notices($txn);
+      $txn->store(); //Need to store here so the event will show as "complete" when firing the hooks
+      MeprUtils::send_transaction_receipt_notices($txn);
     }
 
-    $txn->store();
-
-    $this->send_signup_notices($txn);
+    MeprUtils::send_signup_notices($txn);
 
     return array('subscription' => $sub, 'transaction' => $txn);
   }
@@ -276,7 +291,7 @@ class MeprArtificialGateway extends MeprBaseRealGateway {
       $sub->limit_reached_actions();
 
     if(!isset($_REQUEST['silent']) || ($_REQUEST['silent'] == false))
-      $this->send_cancelled_sub_notices($sub);
+      MeprUtils::send_cancelled_sub_notices($sub);
 
     return $sub;
   }
@@ -324,6 +339,8 @@ class MeprArtificialGateway extends MeprBaseRealGateway {
       $prd->price = $amount;
     }
 
+    ob_start();
+
     $invoice = MeprTransactionsHelper::get_invoice($txn);
     echo $invoice;
 
@@ -343,6 +360,9 @@ class MeprArtificialGateway extends MeprBaseRealGateway {
         </form>
       </div>
     <?php
+
+    $output = MeprHooks::apply_filters('mepr_artificial_gateway_payment_form', ob_get_clean(), $txn);
+    echo $output;
   }
 
   /** Validates the payment form before a payment is processed */

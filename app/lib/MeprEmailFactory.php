@@ -4,16 +4,18 @@ if(!defined('ABSPATH')) {die('You are not allowed to call this page directly.');
 /** Churns out our Emails on demand **/
 class MeprEmailFactory {
   public static function fetch( $class, $etype='MeprBaseEmail', $args=array() ) {
-    if(!class_exists($class))
+    if(!class_exists($class)) {
       throw new MeprInvalidEmailException(__('Email wasn\'t found', 'memberpress'));
+    }
 
     // We'll let the autoloader in memberpress.php
     // handle including files containing these classes
     $r = new ReflectionClass($class);
     $obj = $r->newInstanceArgs($args);
 
-    if( !( $obj instanceof $etype ) )
-      throw new MeprInvalidEmailException(__('Not a valid email', 'memberpress'));
+    if(!($obj instanceof $etype)) {
+      throw new MeprInvalidEmailException(sprintf(__('Not a valid email object: %1$s is not an instance of %2$s', 'memberpress'), $class, $etype));
+    }
 
     return $obj;
   }

@@ -3,14 +3,20 @@ if(!defined('ABSPATH')) {die('You are not allowed to call this page directly.');
 
 class MeprGroupsCtrl extends MeprCptCtrl {
   public function load_hooks() {
+    add_action('init', 'MeprGroup::cleanup_db');
     add_action('admin_enqueue_scripts', 'MeprGroupsCtrl::enqueue_scripts');
-    add_filter('the_content', 'MeprGroupsCtrl::render_pricing_boxes', 10);
     add_action('manage_pages_custom_column', 'MeprGroupsCtrl::custom_columns', 10, 2);
+    add_action('save_post', 'MeprGroupsCtrl::save_postdata');
+    add_action('wp_ajax_mepr_is_product_already_in_group', 'MeprGroupsCtrl::is_product_already_in_group');
+    add_action('mepr-group-fallback-membership-deleted', 'MeprGroupsCtrl::remove_fallback_memberships', 10, 2);
+    add_action('mepr-group-fallback-membership-changed', 'MeprGroupsCtrl::update_fallback_memberships', 10, 2);
+    add_action('mepr-txn-status-complete', array($this, 'expire_fallback'));
+    add_action('mepr-txn-status-confirmed', array($this, 'expire_fallback'));
+    add_action('mepr-txn-status-refunded', array($this, 'create_fallback'));
+    add_action('mepr-transaction-expired', array($this, 'create_fallback'), 10, 2);
+    add_filter('the_content', 'MeprGroupsCtrl::render_pricing_boxes', 10);
     add_filter('manage_edit-memberpressgroup_columns', 'MeprGroupsCtrl::columns');
     add_filter('template_include', 'MeprGroupsCtrl::template_include');
-    add_action('save_post', 'MeprGroupsCtrl::save_postdata');
-    add_action('init', 'MeprGroup::cleanup_db');
-    add_action('wp_ajax_mepr_is_product_already_in_group', 'MeprGroupsCtrl::is_product_already_in_group');
     add_shortcode('mepr-group-price-boxes', 'MeprGroupsCtrl::shortcode_group_price_boxes');
 
     // Cleanup list view
@@ -35,7 +41,7 @@ class MeprGroupsCtrl extends MeprCptCtrl {
           'parent_item_colon' => __('Parent Group:', 'memberpress')
         ),
         'public' => true,
-        'show_ui' => MeprUpdateCtrl::is_activated(),
+        'show_ui' => true, //MeprUpdateCtrl::is_activated(),
         'show_in_menu' => 'memberpress',
         'capability_type' => 'page',
         'hierarchical' => true,
@@ -101,6 +107,7 @@ class MeprGroupsCtrl extends MeprCptCtrl {
   public static function columns($columns) {
     $columns = array(
       "cb" => "<input type=\"checkbox\" />",
+      "ID" => __("ID", 'memberpress'),
       "title" => __("Group Title", "memberpress"),
       "url" => __("URL", "memberpress"),
       "group-products" => __("Memberships in Group", "memberpress")
@@ -127,6 +134,8 @@ class MeprGroupsCtrl extends MeprCptCtrl {
   // Template selection
   public static function template_include($template) {
     global $post, $wp_query;
+
+    if(!is_singular()) { return $template; }
 
     if(isset($post) && is_a($post, 'WP_Post') && $post->post_type == MeprGroup::$cpt) {
       $group = new MeprGroup($post->ID);
@@ -158,6 +167,7 @@ class MeprGroupsCtrl extends MeprCptCtrl {
 
   public static function save_postdata($post_id) {
     $post = get_post($post_id);
+    $fallback_state = 'unchanged';
 
     if(!wp_verify_nonce((isset($_POST[MeprGroup::$nonce_str]))?$_POST[MeprGroup::$nonce_str]:'', MeprGroup::$nonce_str.wp_salt())) {
       return $post_id; //Nonce prevents meta data from being wiped on move to trash
@@ -174,18 +184,39 @@ class MeprGroupsCtrl extends MeprCptCtrl {
     if(!empty($post) && $post->post_type == MeprGroup::$cpt) {
       $group = new MeprGroup($post_id);
       $group->pricing_page_disabled = isset($_POST[MeprGroup::$pricing_page_disabled_str]);
+      $group->disable_change_plan_popup = isset($_POST[MeprGroup::$disable_change_plan_popup_str]);
       $group->is_upgrade_path = isset($_POST[MeprGroup::$is_upgrade_path_str]);
+      $group->upgrade_path_reset_period = isset($_POST[MeprGroup::$upgrade_path_reset_period_str]);
       //$group->group_page_style_options = self::get_style_options_array();
-      $group->group_theme = $_POST[MeprGroup::$group_theme_str];
-      $group->page_button_class = $_POST[MeprGroup::$page_button_class_str];
-      $group->page_button_highlighted_class = $_POST[MeprGroup::$page_button_highlighted_class_str];
-      $group->page_button_disabled_class = $_POST[MeprGroup::$page_button_disabled_class_str];
-      $group->alternate_group_url = stripslashes($_POST[MeprGroup::$alternate_group_url_str]);
+      $group->group_theme = sanitize_text_field($_POST[MeprGroup::$group_theme_str]);
+      $group->page_button_class = sanitize_text_field($_POST[MeprGroup::$page_button_class_str]);
+      $group->page_button_highlighted_class = sanitize_text_field($_POST[MeprGroup::$page_button_highlighted_class_str]);
+      $group->page_button_disabled_class = sanitize_text_field($_POST[MeprGroup::$page_button_disabled_class_str]);
+      $group->alternate_group_url = sanitize_text_field(wp_unslash($_POST[MeprGroup::$alternate_group_url_str]));
       self::store_chosen_products($group->ID);
       $group->use_custom_template = isset($_POST['_mepr_use_custom_template']);
-      $group->custom_template = isset($_POST['_mepr_custom_template'])?$_POST['_mepr_custom_template']:'';
+      $group->custom_template = isset($_POST['_mepr_custom_template'])?sanitize_text_field($_POST['_mepr_custom_template']):'';
 
+      $orig_fallback_membership = $group->fallback_membership;
+      $fallback_membership = sanitize_text_field($_POST[MeprGroup::$fallback_membership_str]);
+
+      if(empty($_POST[MeprGroup::$fallback_membership_str])) {
+        if(!empty($orig_fallback_membership)) {
+          // Fallback changed to default or none
+          $fallback_state = 'deleted';
+        }
+      }
+      else {
+        if(!empty($orig_fallback_membership) && $orig_fallback_membership != $fallback_membership) {
+          // Fallback changed to a new product/membership
+          $fallback_state = 'changed';
+        }
+      }
+
+      $group->fallback_membership = $fallback_membership;
       $group->store_meta();
+      // Let's handle the $fallback_state changes through hooks
+      MeprHooks::do_action("mepr-group-fallback-membership-{$fallback_state}", $orig_fallback_membership, $group);
 
       //Some themes rely on this meta key to be set to use the custom template, and they don't use locate_template
       if($group->use_custom_template && !empty($group->custom_template)) {
@@ -217,7 +248,7 @@ class MeprGroupsCtrl extends MeprCptCtrl {
       self::zero_out_old_products($group_id);
 
       for($index=0; $index < (count($_POST[MeprGroup::$products_str]['product']) - 1); $index++) {
-        $product_id = $_POST[MeprGroup::$products_str]['product'][$index];
+        $product_id = (int)sanitize_key($_POST[MeprGroup::$products_str]['product'][$index]);
         $prd = new MeprProduct($product_id);
 
         if($prd->ID) {
@@ -258,9 +289,11 @@ class MeprGroupsCtrl extends MeprCptCtrl {
     global $current_screen;
 
     if($current_screen->post_type == MeprGroup::$cpt) {
-      wp_enqueue_style('mepr-groups-css', MEPR_CSS_URL.'/admin-groups.css', array(), MEPR_VERSION);
+      wp_enqueue_style('mepr-groups-css', MEPR_CSS_URL.'/admin-groups.css', array('mepr-settings-table-css'), MEPR_VERSION);
+
       wp_dequeue_script('autosave'); //Disable auto-saving
-      wp_enqueue_script('mepr-groups-js', MEPR_JS_URL.'/admin_groups.js', array('jquery-ui-sortable'), MEPR_VERSION);
+
+      wp_enqueue_script('mepr-groups-js', MEPR_JS_URL.'/admin_groups.js', array('jquery','jquery-ui-sortable','mepr-settings-table-js'), MEPR_VERSION);
     }
   }
 
@@ -270,7 +303,7 @@ class MeprGroupsCtrl extends MeprCptCtrl {
       die();
     }
 
-    $groups = get_posts(array('numberposts' => -1, 'post_type' => MeprGroup::$cpt, 'post_status' => 'publish'));
+    $groups = MeprCptModel::all('MeprGroup');
 
     if(empty($groups)) { die(); }
 
@@ -289,6 +322,103 @@ class MeprGroupsCtrl extends MeprCptCtrl {
     }
 
     die(); //No matches so let's kill this thing
+  }
+
+  /**
+  * Removes all fallback transactions matching the product and gateway
+  * Hook: mepr-group-fallback-membership-deleted
+  */
+  public static function remove_fallback_memberships($fallback_membership, $group) {
+    global $wpdb;
+    $mepr_db = MeprDb::fetch();
+
+    $query = $wpdb->prepare("
+      DELETE FROM {$mepr_db->transactions}
+      WHERE product_id = %d
+        AND gateway = %s
+      ",
+      (int)$fallback_membership,
+      MeprTransaction::$fallback_gateway_str
+    );
+
+    MeprUtils::debug_log("Removing fallback memberships for {$fallback_membership}");
+    $wpdb->query($query);
+  }
+
+  /**
+  * Updates all fallback transactions matching the product and gateway to the new product/membership
+  * Hook: mepr-group-fallback-membership-changed
+  */
+  public static function update_fallback_memberships($fallback_membership, $group) {
+    global $wpdb;
+    $mepr_db = MeprDb::fetch();
+
+    $query = $wpdb->prepare("
+      UPDATE {$mepr_db->transactions}
+        SET product_id = %d
+      WHERE product_id = %d
+        AND gateway = %s
+      ",
+      (int)$group->fallback_membership,
+      (int)$fallback_membership,
+      MeprTransaction::$fallback_gateway_str
+    );
+
+    MeprUtils::debug_log("Updating fallback memberships for {$fallback_membership} to {$group->fallback_membership}");
+    $wpdb->query($query);
+  }
+
+  /**
+  * Used to expire the active fallback transaction
+  * Hooks: mepr-txn-status-complete, mepr-txn-status-confirmed
+  */
+  public static function expire_fallback($txn) {
+    $subscription = $txn->subscription();
+
+    // Ensure the subscription is legit
+    if($subscription === false) { return; }
+
+    $product = $subscription->product();
+    $group = $product->group();
+    // Return if product doesn't belong to a group
+    if($group === false) { return; }
+
+    $user = $subscription->user();
+    $fallback_membership = $group->fallback_membership();
+
+    if($fallback_membership !== false && $product !== $fallback_membership) {
+      if($user->subscription_in_group($group)) {
+        $fallback_txn = $user->fallback_txn($fallback_membership->ID);
+        if($fallback_txn !== false) {
+          $fallback_txn->expire();
+        } // No fallback transaction exists
+      } // No active subscription found for the group
+    } // No fallback for product or the transaction product is the fallback
+  }
+
+  /**
+  * Used to expire create a fallback transaction
+  * Hooks: mepr-transaction-expired, mepr-txn-status-refunded
+  */
+  public static function create_fallback($txn, $sub_status=false) {
+    $subscription = $txn->subscription();
+
+    // Ensure the subscription is legit
+    if($subscription === false) { return; }
+
+    $product = $subscription->product();
+    $group = $product->group();
+    // Return if product doesn't belong to a group
+    if($group === false) { return; }
+
+    $user = $subscription->user();
+    $fallback_membership = $group->fallback_membership();
+
+    if($fallback_membership !== false && $product !== $fallback_membership) {
+      if(!$user->subscription_in_group($group)) {
+        $txn->create_fallback_transaction();
+      } // User still has an active subscription in the group
+    } // No fallback for product or the transaction product is the fallback
   }
 
   public static function shortcode_group_price_boxes($atts, $content = '') {

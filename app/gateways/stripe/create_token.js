@@ -1,54 +1,71 @@
 (function ($) {
-  // this identifies your website in the createToken call below
-  Stripe.setPublishableKey(MeprStripeGateway.public_key);
-
   $(document).ready(function() {
-    $("#payment-form").submit(function(e) {
+    //Trigger a click on stripe checkout automatically
+    var done = false; //Prevent double submit (for some reason)
+    if(!done) {
+      $("button.stripe-button-el").trigger("click");
+      done = true;
+    }
+
+    var stripe = Stripe(MeprStripeGateway.public_key);
+    var elements = stripe.elements();
+    var card = elements.create('card');
+    card.mount('#card-element');
+    card.addEventListener('change', function(event) {
+      var displayError = document.getElementById('card-errors');
+      if (event.error) {
+        displayError.textContent = event.error.message;
+      } else {
+        displayError.textContent = '';
+      }
+    });
+
+    var stripePaymentForm = document.getElementById('mepr-stripe-payment-form');
+    stripePaymentForm.addEventListener('submit', function(e) {
       e.preventDefault();
-      // disable the submit button to prevent repeated clicks
-      //$('.submit-button').attr("disabled", "disabled");
-      $('.stripe-loading-gif').show();
+      $(stripePaymentForm).find('.mepr-submit').disabled = true;
+      $(stripePaymentForm).find('.mepr-loading-gif').show();
 
-      var exp = $('.cc-exp').payment('cardExpiryVal');
-
-      var tok_args = {
-        name: $('.card-name').val(),
-        number: $('.card-number').val(),
-        cvc: $('.card-cvc').val(),
-        exp_month: exp.month,
-        exp_year: exp.year
+      // Returns the form fields in a pretty key/value hash
+      var formData = $(stripePaymentForm).serializeArray().reduce(function(obj, item) {
+        obj[item.name] = item.value;
+        return obj;
+      }, {});
+      var cardData = {
+        name: formData['card-name']
       };
+      // Merges in the address fields if required for taxes
+      if(formData['address_required'] == 1) {
+        $.extend(cardData, {
+          address_line1:   formData['card-address-1'],
+          address_line2:   formData['card-address-2'],
+          address_city:    formData['card-city'],
+          address_state:   formData['card-state'],
+          address_zip:     formData['card-zip'],
+          address_country: formData['card-country']
+        });
+      }
 
-      // Send address if it's there
-      if( $('.card-address-1').length != 0 ) { tok_args['address_line1'] = $('.card-address-1').val(); }
-      if( $('.card-address-2').length != 0 ) { tok_args['address_line2'] = $('.card-address-2').val(); }
-      if( $('.card-city').length != 0 ) { tok_args['address_city'] = $('.card-city').val(); }
-      if( $('.card-state').length != 0 ) { tok_args['address_state'] = $('.card-state').val(); }
-      if( $('.card-zip').length != 0 ) { tok_args['address_zip'] = $('.card-zip').val(); }
-      if( $('.card-country').length != 0 ) { tok_args['address_country'] = $('.card-country').val(); }
-
-      // createToken returns immediately - the supplied callback submits the form if there are no errors
-      Stripe.createToken( tok_args, function(status, response) {
-        //console.info('message', response);
-        if(response.error) {
+      stripe.createToken(card, cardData).then(function(result) {
+        if (result.error) {
           // re-enable the submit button
-          $('.mepr-submit').removeAttr("disabled");
-          // show the errors on the form
-          $('.mepr-stripe-errors').html(response.error.message);
-          $('.mepr-stripe-errors').addClass('mepr_error');
-          // hide the spinning gif bro
-          $('.mepr-loading-gif').hide();
+          $(stripePaymentForm).find('.mepr-submit').disabled = false;
+          // Inform the user if there was an error
+          var errorElement = document.getElementById('card-errors');
+          errorElement.textContent = result.error.message;
         } else {
-          $('.mepr-stripe-errors').removeClass('mepr_error');
-          var form$ = $("#payment-form");
-          // token contains id, last4, and card type
-          var token = response['id'];
-          // insert the token into the form so it gets submitted to the server
-          form$.append("<input type='hidden' name='stripe_token' value='" + token + "' />");
-          // and submit
-          form$.get(0).submit();
+          if(!$(stripePaymentForm).hasClass('mepr-payment-submitted')) {
+            $(stripePaymentForm).addClass('mepr-payment-submitted');
+            var hiddenInput = document.createElement('input');
+            hiddenInput.setAttribute('type', 'hidden');
+            hiddenInput.setAttribute('name', 'stripeToken');
+            hiddenInput.setAttribute('value', result.token.id);
+            stripePaymentForm.appendChild(hiddenInput);
+            stripePaymentForm.submit();
+          }
         }
       });
+
       return false; // submit from callback
     });
   });

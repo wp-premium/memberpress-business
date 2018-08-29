@@ -10,6 +10,11 @@ class MeprTransactionsTable extends WP_List_Table
   public $_columns;
   public $_sortable;
 
+  public $_searchable;
+  public $db_search_cols;
+
+  public $totalitems;
+
   public function __construct($screen, $columns=array()) {
     if ( is_string( $screen ) )
       $screen = convert_to_screen( $screen );
@@ -19,6 +24,22 @@ class MeprTransactionsTable extends WP_List_Table
     if ( !empty( $columns ) ) {
       $this->_columns = $columns;
     }
+
+    $this->_searchable = array(
+      'txn' => __('Transaction', 'memberpress'),
+      'sub' => __('Subscription', 'memberpress'),
+      'user' => __('Username', 'memberpress'),
+      'email' => __('User Email', 'memberpress'),
+      'id' => __('Id', 'memberpress'),
+    );
+
+    $this->db_search_cols = array(
+      'txn' => 'tr.trans_num',
+      'sub' => 'sub.subscr_id',
+      'user' => 'm.user_login',
+      'email' => 'm.user_email',
+      'id' => 'tr.id',
+    );
 
     parent::__construct(
       array(
@@ -43,12 +64,16 @@ class MeprTransactionsTable extends WP_List_Table
   public function extra_tablenav($which)
   {
     if($which == "top") {
+      $search_cols = $this->_searchable;
+
       MeprView::render("/admin/table_controls", get_defined_vars());
     }
 
     if($which == "bottom") {
       $action = 'mepr_transactions';
-      MeprView::render("/admin/table_footer", get_defined_vars());
+      $totalitems = $this->totalitems;
+      $itemcount = count($this->items);
+      MeprView::render("/admin/table_footer", compact('action','totalitems','itemcount'));
     }
   }
 
@@ -97,17 +122,23 @@ class MeprTransactionsTable extends WP_List_Table
     $order   = !empty($_GET["order"])   ? esc_sql($_GET["order"])   : 'DESC';
     $paged   = !empty($_GET["paged"])   ? esc_sql($_GET["paged"])   : 1;
     $search  = !empty($_GET["search"])  ? esc_sql($_GET["search"])  : '';
+    $search_field = !empty($_GET["search-field"])  ? esc_sql($_GET["search-field"])  : 'any';
+    $search_field = isset($this->db_search_cols[$search_field]) ? $this->db_search_cols[$search_field] : 'any';
 
-    $list_table = MeprTransaction::list_table($orderby, $order, $paged, $search, $perpage);
+    $list_table = MeprTransaction::list_table($orderby, $order, $paged, $search, $search_field, $perpage);
     $totalitems = $list_table['count'];
 
     //How many pages do we have in total?
     $totalpages = ceil($totalitems/$perpage);
 
     /* -- Register the pagination -- */
-    $this->set_pagination_args(array("total_items" => $totalitems,
-                                     "total_pages" => $totalpages,
-                                     "per_page" => $perpage));
+    $this->set_pagination_args(
+      array(
+        'total_items' => $totalitems,
+        'total_pages' => $totalpages,
+        'per_page' => $perpage
+      )
+    );
 
     /* -- Register the Columns -- */
     if(isset($screen) && is_object($screen)) {
@@ -121,6 +152,8 @@ class MeprTransactionsTable extends WP_List_Table
         $this->get_sortable_columns()
       );
     }
+
+    $this->totalitems = $totalitems;
 
     /* -- Fetch the items -- */
     $this->items = $list_table['results'];

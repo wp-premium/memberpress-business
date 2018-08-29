@@ -1,0 +1,39 @@
+/* mepr custom styles */
+
+.mepr-white-popup {
+  position: relative !important;
+  background: #FFF !important;
+  padding: 20px !important;
+  width: auto !important;
+  max-width: 500px !important;
+  margin: 20px auto !important;
+  text-align: center !important;
+}
+
+.mepr-white-popup .mepr-btn {
+  -webkit-border-radius: 5 !important;
+  -moz-border-radius: 5 !important;
+  border-radius: 5px !important;
+  font-family: Arial !important;
+  color: #ffffff !important;
+  font-size: 14px !important;
+  background: #3498db !important;
+  padding: 10px 20px 10px 20px !important;
+  text-decoration: none !important;
+  cursor: pointer !important;
+}
+
+.mepr-white-popup .mepr-btn:hover {
+  background: #3cb0fd !important;
+  text-decoration: none !important;
+}
+
+.mepr-white-popup .mepr-cancel-sub-text {
+  padding-bottom: 20px !important;
+}
+
+.mepr-popup-leftalign {
+  text-align: left !important;
+}
+
+

@@ -4,8 +4,8 @@ jQuery(document).ready(function() {
 
     var data = {
       action: 'mepr_resend_welcome_email',
-      uid: jQuery(this).attr('user-id'),
-      _mepr_nonce: jQuery(this).attr('mepr-nonce')
+      uid: jQuery(this).data('uid'),
+      nonce: jQuery(this).data('nonce')
     };
 
     jQuery.post(ajaxurl, data, function(response) {
