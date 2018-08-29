@@ -21,7 +21,9 @@ class MeprJobFactory
   }
 
   public static function paths() {
-    return MeprHooks::apply_filters( 'mepr-job-paths', array( MEPR_JOBS_PATH ) );
+    $paths = MeprHooks::apply_filters('mepr-job-paths', array(MEPR_JOBS_PATH));
+    MeprUtils::debug_log(sprintf(__('Job Paths %s', 'memberpress'),MeprUtils::object_to_string($paths)));
+    return $paths;
   }
 }
 

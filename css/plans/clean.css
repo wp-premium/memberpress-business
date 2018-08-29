@@ -1,0 +1,41 @@
+/** MP PLAN TEMPLATE: fixed */
+.mepr-price-menu.fixed.clean {
+  /* color: #ddd !important; */
+}
+
+.mepr-price-menu.fixed.clean .mepr-price-box {
+  border-top: 1px solid #ddd;
+  border-right: 1px solid #ddd;
+  border-bottom: 1px solid #ddd;
+}
+
+.mepr-price-menu.fixed.clean .mepr-price-boxes .mepr-price-box:first-child {
+  border-left: 1px solid #ddd;
+}
+
+/*
+.mepr-price-menu.fixed .mepr-price-box .mepr-price-box-benefits {
+  border-bottom: 1px solid #ddd;
+}
+*/
+
+.mepr-price-menu.fixed.clean .mepr-price-box-heading,
+.mepr-price-menu.fixed.clean .mepr-price-box-benefits {
+  border-top: 1px solid #ddd;
+}
+
+.mepr-price-menu.fixed.clean .mepr-price-box.highlighted .mepr-price-box-heading,
+.mepr-price-menu.fixed.clean .mepr-price-box.highlighted .mepr-price-box-benefits {
+  background-color: #efefef;
+}
+
+/*
+.mepr-price-menu.fixed.clean .mepr-price-box-benefits .mepr-price-box-benefits-list .mepr-price-box-benefits-item {
+  border-bottom: 1px solid #ddd;
+}
+
+.mepr-price-menu.fixed.clean .mepr-price-box-benefits .mepr-price-box-benefits-list .mepr-price-box-benefits-item:last-child {
+  border-bottom: none;
+}
+*/
+

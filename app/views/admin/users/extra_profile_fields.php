@@ -4,6 +4,23 @@
 
 <table class="form-table mepr-form">
   <tbody>
+    <?php if($mepr_options->require_privacy_policy): ?>
+      <tr>
+        <th>
+          <label><?php _e('Privacy Policy', 'memberpress') ?></label>
+        </th>
+        <td>
+          <?php
+            if(get_user_meta($user->ID, 'mepr_agree_to_privacy_policy', false)) {
+              _e('User has consented to the Privacy Policy', 'memberpress');
+            }
+            else {
+              _e('User has NOT consented to the Privacy Policy', 'memberpress');
+            }
+          ?>
+        </td>
+      </tr>
+    <?php endif; ?>
     <tr>
       <th>
         <label for="mepr-geo-country"><?php _e('Signup Location', 'memberpress'); ?></label>
@@ -11,7 +28,7 @@
       <td>
         <?php
           if($geo_country = get_user_meta($user->ID, 'mepr-geo-country', true)) {
-            $countries = require(MEPR_I18N_PATH.'/countries.php');
+            $countries = MeprUtils::countries(false);
             printf($countries[$geo_country]);
           }
           else {
@@ -22,58 +39,27 @@
       </td>
     </tr>
   <?php
-    if(MeprUtils::is_mepr_admin()) { //Let admins see all fields
-      $custom_fields = $mepr_options->custom_fields;
-    }
-    else {
-      $custom_fields = $user->custom_profile_fields();
-    }
-
-    if($mepr_options->show_address_fields) {
-      $custom_fields = array_merge($custom_fields, $mepr_options->address_fields); //Genius
-    }
-
-    if(!empty($custom_fields)) {
-      foreach($custom_fields as $line) {
-        $value = get_user_meta($user->ID, $line->field_key, true);
-        $required = ($line->required)?'<span class="description">'.__('(required)', 'memberpress').'</span>':'';
-
-        ?>
-        <tr>
-          <th>
-            <label for="<?php echo $line->field_key; ?>"><?php printf( __('%1$s:%2$s', 'memberpress'), stripslashes($line->field_name), $required ); ?></label>
-          </th>
-          <td>
-            <?php
-              echo MeprUsersHelper::render_custom_field($line, $value, array(
-                'text' => 'regular-text',
-                'email' => 'regular-text',
-                'textarea' => 'regular-text',
-                'date' => 'regular-text',
-                'states' => 'regular-text'
-              ));
-            ?>
-          </td>
-        </tr>
-        <?php
-      }
-    }
+    MeprUsersHelper::render_editable_custom_fields($user);
 
     if(MeprUtils::is_mepr_admin()) { //Allow admins to see
     ?>
       <tr>
         <td colspan="2">
-          <a href="<?php echo admin_url('admin.php?page=memberpress-trans&member='.$user->user_login); ?>" class="button"><?php _e("View Member's Transactions", "memberpress");?></a>
-        </td>
-      </tr>
-      <tr>
-        <td>
-          <a href="<?php echo admin_url('admin.php?page=memberpress-subscriptions&member='.$user->user_login); ?>" class="button"><?php _e("View Member's Subscriptions", "memberpress");?></a>
+          <a href="<?php echo admin_url('admin.php?page=memberpress-trans&search='.urlencode($user->user_email)).'&search-field=email'; ?>" class="button"><?php _e("View Member's Transactions", "memberpress");?></a>
         </td>
       </tr>
       <tr>
         <td colspan="2">
-          <a class="button mepr-resend-welcome-email" href="#" user-id="<?php echo $user->ID; ?>" mepr-nonce="<?php echo wp_create_nonce('mepr-resend-welcome-email'); ?>"><?php _e('Resend MemberPress Welcome Email', 'memberpress'); ?></a>&nbsp;&nbsp;<img src="<?php echo admin_url('images/loading.gif'); ?>" alt="<?php _e('Loading...', 'memberpress'); ?>" class="mepr-resend-welcome-email-loader" />&nbsp;&nbsp;<span class="mepr-resend-welcome-email-message">&nbsp;</span>
+          <a href="<?php echo admin_url('admin.php?page=memberpress-subscriptions&search='.urlencode($user->user_email)).'&search-field=email'; ?>" class="button"><?php _e("View Member's Subscriptions", "memberpress");?></a>
+        </td>
+      </tr>
+      <tr>
+        <td colspan="2">
+          <a class="button mepr-resend-welcome-email" href="#"
+             data-uid="<?php echo $user->ID; ?>"
+             data-nonce="<?php echo wp_create_nonce('mepr_resend_welcome_email'); ?>"> <?php _e('Resend MemberPress Welcome Email', 'memberpress'); ?>
+          </a>&nbsp;&nbsp;
+          <img src="<?php echo admin_url('images/loading.gif'); ?>" alt="<?php _e('Loading...', 'memberpress'); ?>" class="mepr-resend-welcome-email-loader" />&nbsp;&nbsp;<span class="mepr-resend-welcome-email-message">&nbsp;</span>
         </td>
       </tr>
       <tr>
@@ -89,4 +75,3 @@
   ?>
   </tbody>
 </table>
-

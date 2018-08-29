@@ -1,7 +1,7 @@
 @charset "UTF-8";
 
 .icon-memberpress-logo:before {
-  content: "\e838";
+  content: "\e839";
 }
 
 #toplevel_page_memberpress div.wp-menu-image img {
@@ -9,7 +9,7 @@
 }
 
 #toplevel_page_memberpress div.wp-menu-image:before {
-  content: "\e838";
+  content: "\e839";
   font-family: "memberpress";
 }
 

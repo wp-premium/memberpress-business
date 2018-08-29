@@ -20,19 +20,19 @@
 }
 
 .mp_wrapper .visa {
-  background: url('../images/checkout/visa.png') right no-repeat !important;
+  background: url('../images/checkout/visa.png') right white no-repeat !important;
 }
 
 .mp_wrapper .mastercard {
-  background: url('../images/checkout/mastercard.png') right no-repeat !important;
+  background: url('../images/checkout/mastercard.png') right white no-repeat !important;
 }
 
 .mp_wrapper .discover {
-  background: url('../images/checkout/discover.png') right no-repeat !important;
+  background: url('../images/checkout/discover.png') right white no-repeat !important;
 }
 
 .mp_wrapper .amex {
-  background: url('../images/checkout/amex.png') right no-repeat !important;
+  background: url('../images/checkout/amex.png') right white no-repeat !important;
 }
 
 .mp_wrapper .dinersclub {
@@ -44,7 +44,7 @@
 }
 
 .mp_wrapper .mepr-cards {
-  background: url('../images/checkout/cards.png') right no-repeat !important;
+  background: url('../images/checkout/cards.png') right white no-repeat !important;
 }
 
 /* A bit of a hack to get the invalid color looking more accurate */
@@ -63,6 +63,9 @@
   text-align: left;
   line-height: 32px;
   vertical-align: middle;
+}
+.mp_wrapper .mepr-payment-method input[type="tel"] {
+  line-height: initial;
 }
 
 .mp_wrapper .mepr-payment-method .mepr-payment-method-label-text,
@@ -115,3 +118,7 @@
   padding: 0;
 }
 
+.mp-form-submit {
+  margin: 0;
+  padding: 0;
+}

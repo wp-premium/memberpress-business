@@ -102,9 +102,27 @@ abstract class MeprBaseGateway {
   }
 
   /** Returns the url of a given notifier for the current gateway */
-  public function notify_url($action) {
-    if(isset($this->notifiers[$action]))
-      return MEPR_SCRIPT_URL."&pmt={$this->id}&action={$action}";
+  public function notify_url($action, $force_ssl=false) {
+    if(isset($this->notifiers[$action])) {
+      $permalink_structure = get_option('permalink_structure');
+      $force_ugly_urls = get_option('mepr_force_ugly_gateway_notify_urls');
+
+      if($force_ugly_urls || empty($permalink_structure)) {
+        $url = MEPR_SCRIPT_URL."&pmt={$this->id}&action={$action}";
+      }
+      else {
+        $notify_url = preg_replace('!%gatewayid%!', $this->id, MeprUtils::gateway_notify_url_structure());
+        $notify_url = preg_replace('!%action%!', $action, $notify_url);
+
+        $url = site_url($notify_url);
+      }
+
+      if($force_ssl) {
+        $url = preg_replace('/^http:/','https:',$url);
+      }
+
+      return $url;
+    }
 
     return false;
   }
@@ -238,6 +256,13 @@ abstract class MeprBaseGateway {
   /** This method can be overridden if necessary */
   public function process_payment_form($txn) {
     $mepr_options = MeprOptions::fetch();
+
+    //Back button fix for IE and Edge
+    //Make sure they haven't just completed the subscription signup and clicked the back button
+    if($txn->status != MeprTransaction::$pending_str) {
+      throw new Exception(sprintf(_x('You already completed your payment to this subscription. %1$sClick here to view your subscriptions%2$s.', 'ui', 'memberpress'), '<a href="'.$mepr_options->account_page_url("action=subscriptions").'">', '</a>'));
+    }
+
     $error_str = __('Sorry but we can\'t process your payment at this time. Try back later.', 'memberpress');
 
     if(isset($txn) && $txn instanceof MeprTransaction) {
@@ -303,58 +328,94 @@ abstract class MeprBaseGateway {
 
   /** This displays the subscription row buttons on the user account page. Can be overridden if necessary.
     */
-  public function print_user_account_subscription_row_actions($sub_id) {
+  public function print_user_account_subscription_row_actions($subscription) {
     global $post;
 
     $mepr_options = MeprOptions::fetch();
-    $subscription = new MeprSubscription($sub_id);
+    // $subscription = new MeprSubscription($sub_id);
     $product = new MeprProduct($subscription->product_id);
 
     // Assume we're either on the account page or some
     // page that is using the [mepr-account-form] shortcode
     $account_url   = MeprUtils::get_permalink($post->ID);
     $account_delim = ( preg_match( '~\?~', $account_url ) ? '&' : '?' );
+    $user = $subscription->user();
 
     ?>
-    <div class="mepr-account-row-actions">
-      <?php if( $subscription->status != MeprSubscription::$pending_str and
-                $subscription->status != MeprSubscription::$cancelled_str ): ?>
-        <a href="<?php echo $this->https_url("{$account_url}{$account_delim}action=update&sub={$sub_id}"); ?>" class="mepr-account-row-action mepr-account-update"><?php _e('Update', 'memberpress'); ?></a>
+    <?php /* <div class="mepr-account-row-actions"> */ ?>
+      <?php if( $subscription->status != MeprSubscription::$pending_str ): ?>
+        <?php if($subscription->status != MeprSubscription::$cancelled_str): ?>
+          <a href="<?php echo $this->https_url("{$account_url}{$account_delim}action=update&sub={$subscription->id}"); ?>" class="mepr-account-row-action mepr-account-update"><?php _e('Update', 'memberpress'); ?></a>
+        <?php endif; ?>
 
         <?php if(($grp = $product->group()) && count($grp->products('ids')) > 1): //Can't upgrade to no other options ?>
-          <?php if($grp->is_upgrade_path): ?>
-            <a href="<?php echo "{$account_url}{$account_delim}action=upgrade&sub={$sub_id}"; ?>" class="mepr-account-row-action mepr-account-upgrade"><?php _e('Upgrade', 'memberpress'); ?></a>
-          <?php else: //Is in a Group, but not an upgrade path ?>
-            <a href="<?php echo "{$account_url}{$account_delim}action=upgrade&sub={$sub_id}"; ?>" class="mepr-account-row-action mepr-account-upgrade"><?php _e('Other Memberships', 'memberpress'); ?></a>
+          <div id="mepr-upgrade-sub-<?php echo $subscription->id; ?>" class="mepr-white-popup mfp-hide">
+            <center>
+              <div class="mepr-upgrade-sub-text">
+                <?php _e('Please select a new plan', 'memberpress'); ?>
+              </div>
+              <br/>
+              <div>
+                <select id="mepr-upgrade-dropdown-<?php echo $subscription->id; ?>" class="mepr-upgrade-dropdown">
+                  <?php foreach($grp->products() as $p): ?>
+                    <?php if($p->can_you_buy_me()): ?>
+                      <option value="<?php echo $p->url(); ?>"><?php printf('%1$s (%2$s)', $p->post_title, MeprProductsHelper::product_terms($p, $user)); ?></option>
+                    <?php endif; ?>
+                  <?php endforeach; ?>
+                </select>
+              </div>
+              <br/>
+              <div class="mepr-cancel-sub-buttons">
+                <button class="mepr-btn mepr-upgrade-buy-now" data-id="<?php echo $subscription->id; ?>"><?php _e('Select Plan', 'memberpress'); ?></button>
+                <button class="mepr-btn mepr-upgrade-cancel"><?php _e('Cancel', 'memberpress'); ?></button>
+              </div>
+            </center>
+          </div>
+          <?php ob_start(); ?>
+          <?php
+            if($product->simultaneous_subscriptions && $subscription->is_active() && $subscription->is_cancelled()) {
+              MeprAccountHelper::purchase_link($product, _x('Re-Subscribe', 'ui', 'memberpress'));
+            }
+          ?>
+          <?php $upgrade_label = ($grp->is_upgrade_path ? __('Change Plan', 'memberpress') : __('Other Memberships', 'memberpress')); ?>
+          <?php if(!$grp->disable_change_plan_popup): ?>
+            <a href="#mepr-upgrade-sub-<?php echo $subscription->id; ?>" class="mepr-open-upgrade-popup mepr-account-row-action mepr-account-upgrade"><?php echo $upgrade_label; ?></a>
+          <?php else: ?>
+            <a href="<?php echo $grp->url(); ?>" class="mepr-account-row-action mepr-account-upgrade"><?php echo $upgrade_label; ?></a>
           <?php endif; ?>
+          <?php echo MeprHooks::apply_filters('mepr_custom_upgrade_link', ob_get_clean(), $subscription); ?>
         <?php endif; ?>
 
         <?php if( $mepr_options->allow_suspend_subs and
                   $this->can('suspend-subscriptions') and
-                  $subscription->status==MeprSubscription::$active_str ): ?>
-          <a href="<?php echo "{$account_url}{$account_delim}action=suspend&sub={$sub_id}"; ?>" class="mepr-account-row-action mepr-account-suspend" onclick="return confirm('<?php _e('Are you sure you want to pause this subscription?', 'memberpress'); ?>');"><?php _e('Pause', 'memberpress'); ?></a>
+                  $subscription->status == MeprSubscription::$active_str ): ?>
+          <?php ob_start(); ?>
+            <a href="<?php echo "{$account_url}{$account_delim}action=suspend&sub={$subscription->id}"; ?>" class="mepr-account-row-action mepr-account-suspend" onclick="return confirm('<?php _e('Are you sure you want to pause this subscription?', 'memberpress'); ?>');"><?php _e('Pause', 'memberpress'); ?></a>
+          <?php echo MeprHooks::apply_filters('mepr_custom_pause_link', ob_get_clean(), $subscription); ?>
         <?php elseif( $mepr_options->allow_suspend_subs and
                       $this->can('suspend-subscriptions') and
                       $subscription->status==MeprSubscription::$suspended_str ): ?>
-          <a href="<?php echo "{$account_url}{$account_delim}action=resume&sub={$sub_id}"; ?>" class="mepr-account-row-action mepr-account-resume"><?php _e('Resume', 'memberpress'); ?></a>
+          <?php ob_start(); ?>
+            <a href="<?php echo "{$account_url}{$account_delim}action=resume&sub={$subscription->id}"; ?>" class="mepr-account-row-action mepr-account-resume"><?php _e('Resume', 'memberpress'); ?></a>
+          <?php echo MeprHooks::apply_filters('mepr_custom_resume_link', ob_get_clean(), $subscription); ?>
         <?php endif; ?>
 
-        <?php if(!$subscription->in_grace_period()): //Don't allow cancellations during grace period ?>
-          <?php if($mepr_options->allow_cancel_subs and $this->can('cancel-subscriptions')): ?>
-            <div id="mepr-cancel-sub-<?php echo $sub_id; ?>" class="mepr-white-popup mfp-hide">
-              <div class="mepr-cancel-sub-text">
-                <?php _e('Are you sure you want to cancel this subscription? You will not be able to signup for it again until after your most recent payment has expired.', 'memberpress'); ?>
-              </div>
-              <div class="mepr-cancel-sub-buttons">
-                <button class="mepr-btn mepr-left-margin mepr-confirm-yes" data-url="<?php echo "{$account_url}{$account_delim}action=cancel&sub={$sub_id}"; ?>"><?php _e('Yes', 'memberpress'); ?></button>
-                <button class="mepr-btn mepr-confirm-no"><?php _e('No', 'memberpress'); ?></button>
-              </div>
+        <?php if($mepr_options->allow_cancel_subs and $this->can('cancel-subscriptions') && $subscription->status == MeprSubscription::$active_str): ?>
+          <div id="mepr-cancel-sub-<?php echo $subscription->id; ?>" class="mepr-white-popup mfp-hide">
+            <div class="mepr-cancel-sub-text">
+              <?php _e('Are you sure you want to cancel this subscription?', 'memberpress'); ?>
             </div>
-            <a href="#mepr-cancel-sub-<?php echo $sub_id; ?>" class="mepr-open-cancel-confirm mepr-account-row-action mepr-account-cancel"><?php _e('Cancel', 'memberpress'); ?></a>
-          <?php endif; ?>
+            <div class="mepr-cancel-sub-buttons">
+              <button class="mepr-btn mepr-left-margin mepr-confirm-yes" data-url="<?php echo "{$account_url}{$account_delim}action=cancel&sub={$subscription->id}"; ?>"><?php _e('Yes', 'memberpress'); ?></button>
+              <button class="mepr-btn mepr-confirm-no"><?php _e('No', 'memberpress'); ?></button>
+            </div>
+          </div>
+          <?php ob_start(); ?>
+            <a href="#mepr-cancel-sub-<?php echo $subscription->id; ?>" class="mepr-open-cancel-confirm mepr-account-row-action mepr-account-cancel"><?php _e('Cancel', 'memberpress'); ?></a>
+          <?php echo MeprHooks::apply_filters('mepr_custom_cancel_link', ob_get_clean(), $subscription); ?>
         <?php endif; ?>
       <?php endif; ?>
-    </div>
+    <?php /* </div> */ ?>
     <?php
   }
 
@@ -384,6 +445,8 @@ abstract class MeprBaseGateway {
       /* translators: In this string, %1$s is the Blog Name/Title and %2$s is the Name of the Payment Method */
       $subject = sprintf(__('[%1$s] %2$s Debug Email', 'memberpress'), get_option('blogname'), $this->name );
       MeprUtils::wp_mail_to_admin($subject, $message);
+
+      //error_log('************* MEMBERPRESS ERROR: '.$message);
     }
   }
 
@@ -455,7 +518,7 @@ abstract class MeprBaseGateway {
   }
 
   public function years_dropdown($name,$class,$selected='') {
-    $year = date('Y', time());
+    $year = gmdate('Y', time());
     ?>
     <select <?php echo empty($name)?'':"name=\"{$name}\" "; ?>class="mepr-payment-form-select <?php echo empty($class)?'':$class; ?>">
     <?php
@@ -480,183 +543,6 @@ abstract class MeprBaseGateway {
     }
   }
 
-  public function send_signup_notices($txn) {
-    $params     = MeprTransactionsHelper::get_email_params($txn);
-    $usr        = $txn->user();
-    $prd_email  = MeprEmailFactory::fetch('MeprUserProductWelcomeEmail', 'MeprBaseProductEmail', array(array('product_id' => $txn->product_id)));
-    $prd_sent   = false;
-
-    //Send Product Welcome Email?
-    if($prd_email->enabled()) {
-      $this->send_product_welcome_notices($prd_email, $params, $usr);
-      $prd_sent = true;
-    }
-
-    //If this is a one-off send that email too
-    if(empty($txn->subscription_id)) {
-      $this->send_notices($txn, null, 'MeprAdminNewOneOffEmail');
-    }
-
-    //Send New Signup Emails?
-    if(!$usr->signup_notice_sent) {
-      //Don't send the MemberPress Welcome Email if the Product Welcome Email was sent instead
-      if($prd_sent) {
-        $this->send_notices($txn, null, 'MeprAdminSignupEmail');
-      }
-      else {
-        $this->send_notices($txn, 'MeprUserWelcomeEmail', 'MeprAdminSignupEmail');
-      }
-
-      $usr->signup_notice_sent = true;
-      $usr->store();
-
-      //Maybe move this to the bottom of this method outside of an if statement?
-      //Not sure if this should happen on each new signup, or only on a member's first signup
-      MeprEvent::record('member-signup-completed', $usr, $txn);
-    }
-  }
-
-  public function send_new_sub_notices($sub) {
-    $this->send_notices( $sub, null, 'MeprAdminNewSubEmail' );
-    MeprEvent::record('subscription-created', $sub);
-  }
-
-  public function send_transaction_receipt_notices( $txn ) {
-    /** TODO: These events should probably be moved ... but
-      * 'tis very convenient to put them here for now. */
-    MeprEvent::record('transaction-completed', $txn);
-
-    // This is a recurring payment
-    if(($sub = $txn->subscription()) && $sub->txn_count > 1) {
-      MeprEvent::record('recurring-transaction-completed', $txn);
-    }
-    elseif(!$sub) {
-      MeprEvent::record('non-recurring-transaction-completed', $txn);
-    }
-
-    $this->send_notices( $txn,
-                         'MeprUserReceiptEmail',
-                         'MeprAdminReceiptEmail' );
-  }
-
-  public function send_suspended_sub_notices($sub) {
-    $this->send_notices( $sub,
-                         'MeprUserSuspendedSubEmail',
-                         'MeprAdminSuspendedSubEmail' );
-    MeprEvent::record('subscription-paused', $sub);
-  }
-
-  public function send_resumed_sub_notices($sub) {
-    $this->send_notices( $sub,
-                         'MeprUserResumedSubEmail',
-                         'MeprAdminResumedSubEmail' );
-    MeprEvent::record('subscription-resumed', $sub);
-  }
-
-  public function send_cancelled_sub_notices($sub) {
-    $this->send_notices( $sub,
-                         'MeprUserCancelledSubEmail',
-                         'MeprAdminCancelledSubEmail' );
-    MeprEvent::record('subscription-stopped', $sub);
-  }
-
-  public function send_upgraded_txn_notices($txn) {
-    $this->send_upgraded_sub_notices($txn);
-  }
-
-  public function send_upgraded_sub_notices($sub) {
-    $this->send_notices( $sub,
-                         'MeprUserUpgradedSubEmail',
-                         'MeprAdminUpgradedSubEmail' );
-    MeprEvent::record('subscription-upgraded', $sub);
-  }
-
-  public function send_downgraded_txn_notices($txn) {
-    $this->send_downgraded_sub_notices($txn);
-  }
-
-  public function send_downgraded_sub_notices($sub) {
-    $this->send_notices( $sub,
-                         'MeprUserDowngradedSubEmail',
-                         'MeprAdminDowngradedSubEmail' );
-    MeprEvent::record('subscription-downgraded', $sub);
-  }
-
-  public function send_refunded_txn_notices($txn) {
-    $this->send_notices( $txn,
-                         'MeprUserRefundedTxnEmail',
-                         'MeprAdminRefundedTxnEmail' );
-    MeprEvent::record('transaction-refunded', $txn);
-
-    // This is a recurring payment
-    if(($sub = $txn->subscription()) && $sub->txn_count > 0) {
-      MeprEvent::record('recurring-transaction-refunded', $txn);
-    }
-  }
-
-  public function send_failed_txn_notices($txn) {
-    $this->send_notices( $txn,
-                         'MeprUserFailedTxnEmail',
-                         'MeprAdminFailedTxnEmail' );
-
-    MeprEvent::record('transaction-failed', $txn);
-
-    // This is a recurring payment
-    if(($sub = $txn->subscription()) && $sub->txn_count > 0) {
-      MeprEvent::record('recurring-transaction-failed', $txn);
-    }
-  }
-
-  public function send_product_welcome_notices($uemail, $params, $usr) {
-    try {
-      $uemail->to = $usr->formatted_email();
-      $uemail->send_if_enabled($params);
-    }
-    catch( Exception $e ) {
-      // Fail silently for now
-    }
-  }
-
-  public function send_cc_expiration_notices( $txn ) {
-    $sub = $txn->subscription();
-
-    if( $sub instanceof MeprSubscription and
-        $sub->cc_expiring_before_next_payment() )
-    {
-      $this->send_notices( $sub,
-                           'MeprUserCcExpiringEmail',
-                           'MeprAdminCcExpiringEmail' );
-    }
-  }
-
-  private function send_notices($obj, $user_class=null, $admin_class=null) {
-    if( $obj instanceof MeprSubscription ) {
-      $params = MeprSubscriptionsHelper::get_email_params($obj);
-    }
-    elseif( $obj instanceof MeprTransaction )
-      $params = MeprTransactionsHelper::get_email_params($obj);
-    else
-      return false;
-
-    $usr = $obj->user();
-
-    try {
-      if( !is_null($user_class) ) {
-        $uemail = MeprEmailFactory::fetch($user_class);
-        $uemail->to = $usr->formatted_email();
-        $uemail->send_if_enabled($params);
-      }
-
-      if( !is_null($admin_class) ) {
-        $aemail = MeprEmailFactory::fetch($admin_class);
-        $aemail->send_if_enabled($params);
-      }
-    }
-    catch( Exception $e ) {
-      // Fail silently for now
-    }
-  }
-
   //Currently used for both PayPal gateways
   //Determines if the payment being recorded should be a paid trial period payment
   //If so, it should be a confirmation txn that we can convert to a payment txn
@@ -665,53 +551,72 @@ abstract class MeprBaseGateway {
     $mepr_db = new MeprDb();
 
     //If no trial period, or trial period is free, then we don't want to record the first txn as a regular payment
-    if(!$sub->trial || ($sub->trial && $sub->trial_amount <= 0.00))
+    if(!$sub->trial || ($sub->trial && $sub->trial_amount <= 0.00)) {
       return false;
+    }
 
     //Let's also make sure the first txn is still a confirmation type
-    $first_txn = new MeprTransaction($sub->first_txn_id);
-    if($first_txn->txn_type != MeprTransaction::$subscription_confirmation_str)
+    $first_txn = $sub->first_txn();
+    if($first_txn == false || !($first_txn instanceof MeprTransaction) || $first_txn->txn_type != MeprTransaction::$subscription_confirmation_str) {
       return false;
+    }
 
     //Making sure this is in fact the first real payment
-    $q = $wpdb->prepare("SELECT COUNT(*) " .
-                          "FROM {$mepr_db->transactions} " .
-                        "WHERE subscription_id = %d " .
-                          "AND txn_type = %s " .
-                          "AND status <> %s",
-                        $sub->ID,
-                        MeprTransaction::$payment_str,
-                        MeprTransaction::$pending_str);
+    $q = $wpdb->prepare("
+        SELECT COUNT(*)
+          FROM {$mepr_db->transactions}
+         WHERE subscription_id = %d
+           AND txn_type = %s
+           AND status <> %s
+      ",
+      $sub->id,
+      MeprTransaction::$payment_str,
+      MeprTransaction::$pending_str
+    );
 
     $count = $wpdb->get_var($q);
 
     return ((int)$count == 0);
   }
 
-  public function upgraded_sub($sub) {
+  /** Get the renewal base date for a given subscription. This is the date MemberPress will use to calculate expiration dates.
+    * Of course this method is meant to be overridden when a gateway requires it.
+    */
+  public function get_renewal_base_date(MeprSubscription $sub) {
+    return $sub->created_at;
+  }
+
+  public function upgraded_sub($sub, $event_txn) {
     $type = MeprUtils::get_sub_type($sub);
     if( $type !== false ) {
       MeprHooks::do_action("mepr-upgraded-{$type}-sub", $sub);
       MeprHooks::do_action("mepr-upgraded-sub", $type, $sub);
       MeprHooks::do_action("mepr-sub-created", $type, $sub, 'upgraded');
+      MeprUtils::send_upgraded_sub_notices($sub);
+      MeprUtils::record_upgraded_sub_events($sub, $event_txn);
     }
   }
 
-  public function downgraded_sub($sub) {
+  public function downgraded_sub($sub, $event_txn) {
     $type = MeprUtils::get_sub_type($sub);
     if( $type !== false ) {
       MeprHooks::do_action("mepr-downgraded-{$type}-sub", $sub);
       MeprHooks::do_action("mepr-downgraded-sub", $type, $sub);
       MeprHooks::do_action("mepr-sub-created", $type, $sub, 'downgraded');
+      MeprUtils::send_downgraded_sub_notices($sub);
+      MeprUtils::record_downgraded_sub_events($sub, $event_txn);
     }
   }
 
-  public function new_sub($sub) {
+  public function new_sub($sub, $send_notices = false) {
     $type = MeprUtils::get_sub_type($sub);
     if( $type !== false ) {
       MeprHooks::do_action("mepr-new-{$type}-sub", $sub);
       MeprHooks::do_action("mepr-new-sub", $type, $sub);
       MeprHooks::do_action("mepr-sub-created", $type, $sub, 'new');
+      if($send_notices === true) {
+        MeprUtils::send_new_sub_notices($sub);
+      }
     }
   }
 }

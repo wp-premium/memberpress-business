@@ -1,9 +1,9 @@
 <?php if(!defined('ABSPATH')) {die('You are not allowed to call this page directly.');} ?>
 
-<!-- <img src="<?php echo MEPR_IMAGES_URL; ?>/memberpress-36.png" id="mepr-widget-logo" /> -->
+<!-- <img src="<?php echo MEPR_IMAGES_URL; ?>/memberpress-logo.svg" id="mepr-widget-logo" /> -->
 
 <div id="widget-info-blocks">
-  <img src="<?php echo MEPR_URL; ?>/images/memberpress-48@2x.png" id="mepr-stats-logo" />
+  <img src="<?php echo MEPR_URL; ?>/images/memberpress-logo.svg" id="mepr-stats-logo" />
   <p><?php _e('Your 7-Day membership activity:', 'memberpress'); ?></span></p>
 
   <div class="widget_info_block">
@@ -49,7 +49,16 @@
 </div>
 
 <div class="alignright">
-  <a href="<?php echo admin_url( "admin-ajax.php?action=mepr_export_report&export=widget" ); ?>"><?php _e('Export as CSV', 'memberpress'); ?></a>
+  <a href="<?php
+          echo MeprUtils::admin_url(
+            'admin-ajax.php',
+            array('export_report','mepr_reports_nonce'),
+            array(
+              'action' => 'mepr_export_report',
+              'export' => 'widget'
+            )
+          );
+        ?>"><?php _e('Export as CSV', 'memberpress'); ?></a>
 </div>
 
 <div>

@@ -15,5 +15,9 @@
     <div id="who_can_purchase_hidden_row">
       <?php MeprProductsHelper::get_blank_who_can_purchase_row($product); ?>
     </div>
+    <div id="cannot_purchase_message">
+      <label><?php _e('No permissions message', 'memberpress'); ?></label>
+      <?php wp_editor(stripslashes($product->cannot_purchase_message), 'meprcannotpurchasemessage'); ?>
+    </div>
   </div>
 </div>

@@ -51,6 +51,15 @@
   box-sizing: border-box;
 }
 
+.stripe_element_input {
+  border: 1px solid rgba(0, 0, 0, 0.2) !important;
+  padding: 10px !important;
+}
+
+.stripe_element_error {
+  color: #eb1c26;
+}
+
 .mp_wrapper label,
 .mp_wrapper .mp-row {
   font-size: inherit;
@@ -161,6 +170,7 @@ table.mp-table .mp-currency-cell {
 .mepr_error, .mepr_updated {
   padding: 5px 5px 5px 15px !important;
   margin-bottom: 25px !important;
+  box-sizing: border-box !important;
   width: 100%;
 }
 

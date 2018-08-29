@@ -22,7 +22,8 @@ jQuery(document).ready(function() {
     var data = {
              action: 'mepr_subscr_edit_status',
              id: row_id,
-             value: row_status
+             value: row_status,
+             mepr_subscriptions_nonce: MeprSub.update_status_subscription_nonce
     };
 
     jQuery('div#status-hidden-' + row_id).hide();
@@ -44,7 +45,8 @@ jQuery(document).ready(function() {
       var i = jQuery(this).attr('data-value');
       var data = {
         action: 'mepr_delete_subscription',
-        id: i
+        id: i,
+        mepr_subscriptions_nonce: MeprSub.delete_subscription_nonce
       };
 
       jQuery.post(ajaxurl, data, function(data) {
@@ -70,7 +72,8 @@ jQuery(document).ready(function() {
 
       var data = {
         action: 'mepr_suspend_subscription',
-        id: i
+        id: i,
+        mepr_subscriptions_nonce: MeprSub.suspend_subscription_nonce
       };
 
       jQuery.post(ajaxurl, data, function(data) {
@@ -102,7 +105,8 @@ jQuery(document).ready(function() {
 
       var data = {
         action: 'mepr_resume_subscription',
-        id: i
+        id: i,
+        mepr_subscriptions_nonce: MeprSub.resume_subscription_nonce
       };
 
       jQuery.post(ajaxurl, data, function(data) {
@@ -134,7 +138,8 @@ jQuery(document).ready(function() {
 
       var data = {
         action: 'mepr_cancel_subscription',
-        id: i
+        id: i,
+        mepr_subscriptions_nonce: MeprSub.cancel_subscription_nonce
       };
 
       jQuery.post(ajaxurl, data, function(data) {

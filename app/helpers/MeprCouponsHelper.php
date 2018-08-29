@@ -8,7 +8,7 @@ class MeprCouponsHelper
     $access = is_array($access) ? $access : array();
     $contents = array();
 
-    $posts = get_posts(array( 'numberposts' => -1, 'post_type' => 'memberpressproduct', 'post_status' => 'publish'));
+    $posts = MeprCptModel::all('MeprProduct');
 
     foreach($posts as $post)
       $contents[$post->ID] = $post->post_title;

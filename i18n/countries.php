@@ -177,6 +177,7 @@ return array(
   'PN' => _x('Pitcairn', 'ui', 'memberpress'),
   'PL' => _x('Poland', 'ui', 'memberpress'),
   'PT' => _x('Portugal', 'ui', 'memberpress'),
+  'PR' => _x('Puerto Rico', 'ui', 'memberpress'),
   'QA' => _x('Qatar', 'ui', 'memberpress'),
   'RE' => _x('Reunion', 'ui', 'memberpress'),
   'RO' => _x('Romania', 'ui', 'memberpress'),

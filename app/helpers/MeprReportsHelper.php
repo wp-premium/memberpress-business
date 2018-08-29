@@ -10,7 +10,7 @@ class MeprReportsHelper
     $product = (isset($_GET['product']) && $_GET['product'] != 'all')?$_GET['product']:'all';
     $contents = array();
 
-    $posts = get_posts(array( 'numberposts' => -1, 'post_type' => 'memberpressproduct', 'post_status' => 'publish'));
+    $posts = MeprCptModel::all('MeprProduct');
 
     foreach($posts as $post)
       $contents[$post->ID] = $post->post_title;
@@ -36,6 +36,7 @@ class MeprReportsHelper
     ?>
       <form method="get" action="admin.php">
         <input type="hidden" name="page" value="memberpress-reports" />
+        <?php wp_nonce_field('mepr_customize_report', 'mepr_reports_nonce'); ?>
         <label><?php _e('Month:', 'memberpress'); ?></label>
         <?php self::display_monthly_month_dropdown(); ?>
         <label>&nbsp;&nbsp;<?php _e('Year:', 'memberpress'); ?></label>
@@ -82,6 +83,7 @@ class MeprReportsHelper
       <form method="get" action="admin.php">
         <input type="hidden" name="page" value="memberpress-reports" />
         <input type="hidden" name="month" value="<?php echo $month; ?>" />
+        <?php wp_nonce_field('mepr_customize_report', 'mepr_reports_nonce'); ?>
         <label><?php _e('Year:', 'memberpress'); ?></label>
         <?php self::display_year_dropdown(); ?>
         <label>&nbsp;&nbsp;<?php _e('Membership:', 'memberpress'); ?></label>
@@ -120,6 +122,7 @@ class MeprReportsHelper
         <input type="hidden" name="page" value="memberpress-reports" />
         <input type="hidden" name="month" value="<?php echo $month; ?>" />
         <input type="hidden" name="year" value="<?php echo $year; ?>" />
+        <?php wp_nonce_field('mepr_customize_report', 'mepr_reports_nonce'); ?>
         <label><?php _e('Membership:', 'memberpress'); ?></label>
         <?php self::display_products_dropdown(); ?>
         <input type="hidden" name="main-view" value="all-time" />

@@ -1,17 +1,14 @@
 <?php
 if(!defined('ABSPATH')) {die('You are not allowed to call this page directly.');}
 
-class MeprOptionsCtrl extends MeprBaseCtrl
-{
-  public function load_hooks()
-  {
+class MeprOptionsCtrl extends MeprBaseCtrl {
+  public function load_hooks() {
     add_action('wp_ajax_mepr_gateway_form', 'MeprOptionsCtrl::gateway_form');
     add_action('admin_enqueue_scripts', 'MeprOptionsCtrl::enqueue_scripts');
     add_action('admin_notices', 'MeprOptionsCtrl::maybe_configure_options');
   }
 
-  public static function maybe_configure_options()
-  {
+  public static function maybe_configure_options() {
     $mepr_options = MeprOptions::fetch();
 
     if(!$mepr_options->setup_complete and
@@ -23,7 +20,8 @@ class MeprOptionsCtrl extends MeprBaseCtrl
   public static function route() {
     $action = (isset($_REQUEST['action'])?$_REQUEST['action']:'');
 
-    if($action == 'process-form') {
+    if(MeprUtils::is_post_request() && $action == 'process-form') {
+      check_admin_referer('mepr_update_options', 'mepr_options_nonce');
       return self::process_form();
     }
     else if($action == 'queue' and isset($_REQUEST['_wpnonce']) and
@@ -31,12 +29,19 @@ class MeprOptionsCtrl extends MeprBaseCtrl
       MeprUpdateCtrl::manually_queue_update();
     }
     else if($action==='upgrade') { // Manually upgrade the database
-      $mepr_db = new MeprDb();
-      $mepr_db->upgrade();
-      $message = __('Database Was Upgraded', 'memberpress');
-      return self::display_form(array(),$message);
+      $mepr_app = new MeprAppCtrl();
+      try {
+        delete_transient('mepr_migration_error');
+        $mepr_app->install();
+        $message = __('Database Was Upgraded', 'memberpress');
+        return self::display_form(array(),$message);
+      }
+      catch(MeprDbMigrationException $e) {
+        return self::display_form(array($e->getMessage()),'');
+      }
     }
     else if($action==='clear_tax_rates') {
+      check_admin_referer('clear_tax_rates', 'mepr_taxes_nonce');
       MeprTaxRate::destroy_all();
       $message = __('Tax rates have been cleared', 'memberpress');
       return self::display_form(array(),$message);
@@ -58,19 +63,16 @@ class MeprOptionsCtrl extends MeprBaseCtrl
     $mepr_options = MeprOptions::fetch();
 
     if(MeprUtils::is_logged_in_and_an_admin()) {
-      $errors = array();
-
-      $errors = MeprHooks::apply_filters('mepr-validate-options', $mepr_options->validate($_POST, $errors));
-
-      $mepr_options->update($_POST);
+      $errors = MeprHooks::apply_filters('mepr-validate-options', $mepr_options->validate($_POST, array()));
 
       if(count($errors) <= 0) {
-        // Ensure that the rewrite rules are flushed & in place
-        MeprUtils::flush_rewrite_rules();
-
         MeprHooks::do_action('mepr-process-options', $_POST);
 
+        $mepr_options->update($_POST);
         $mepr_options->store();
+
+        // Ensure that the rewrite rules are flushed & in place
+        MeprUtils::flush_rewrite_rules(); //Don't call this before running ->update() - it borks stuff
 
         $message = __('Options saved.', 'memberpress');
       }
@@ -83,8 +85,7 @@ class MeprOptionsCtrl extends MeprBaseCtrl
     if($hook == 'memberpress_page_memberpress-options') {
       $mepr_options = MeprOptions::fetch();
 
-      wp_register_style('mp-settings-table', MEPR_CSS_URL.'/settings_table.css', array(), MEPR_VERSION);
-      wp_enqueue_style('mp-options', MEPR_CSS_URL.'/admin-options.css', array('mp-settings-table'), MEPR_VERSION);
+      wp_enqueue_style('mp-options', MEPR_CSS_URL.'/admin-options.css', array('mepr-settings-table-css'), MEPR_VERSION);
       wp_enqueue_style('mp-emails', MEPR_CSS_URL.'/admin-emails.css', array('mp-options'), MEPR_VERSION);
 
       wp_register_script('jquery-clippy', MEPR_JS_URL.'/jquery.clippy.js', array('jquery'), MEPR_VERSION);
@@ -94,6 +95,7 @@ class MeprOptionsCtrl extends MeprBaseCtrl
         'typeLabel'         => __('Type:', 'memberpress'),
         'defaultLabel'      => __('Default Value(s):', 'memberpress'),
         'signupLabel'       => __('Show at Signup', 'memberpress'),
+        'accountLabel'      => __('Show in Account', 'memberpress'),
         'requiredLabel'     => __('Required', 'memberpress'),
         'textOption'        => __('Text', 'memberpress'),
         'textareaOption'    => __('Textarea', 'memberpress'),
@@ -101,6 +103,7 @@ class MeprOptionsCtrl extends MeprBaseCtrl
         'dropdownOption'    => __('Dropdown', 'memberpress'),
         'multiselectOption' => __('Multi-Select', 'memberpress'),
         'emailOption'       => __('Email', 'memberpress'),
+        'urlOption'         => __('URL', 'memberpress'),
         'radiosOption'      => __('Radio Buttons', 'memberpress'),
         'checkboxesOption'  => __('Checkboxes', 'memberpress'),
         'dateOption'        => __('Date', 'memberpress'),
@@ -117,24 +120,26 @@ class MeprOptionsCtrl extends MeprBaseCtrl
       wp_localize_script('jquery-clippy', 'MeprOptions', $js_helpers);
 
       wp_register_script('memberpress-i18n', MEPR_JS_URL.'/i18n.js', array('jquery'), MEPR_VERSION);
-      wp_localize_script(
-        'memberpress-i18n',
-        'MeprI18n',
-        array('states' => MeprUtils::states())
-      );
+      wp_localize_script('memberpress-i18n', 'MeprI18n', array('states' => MeprUtils::states()));
 
-      wp_enqueue_script(
-        'mepr-options-js',
-        MEPR_JS_URL.'/admin_options.js',
+      // Enqueue admin_options.js
+      $local_data = array(
+        'option_nonce' => wp_create_nonce('mepr_gateway_form_nonce'),
+        'tax_nonce' => wp_create_nonce('mepr_taxes')
+      );
+      wp_enqueue_script('mepr-options-js', MEPR_JS_URL.'/admin_options.js',
         array(
           'jquery',
           'jquery-clippy',
+          'mepr-settings-table-js',
           'mepr-admin-shared-js',
           'jquery-ui-sortable',
           'memberpress-i18n'
         ),
         MEPR_VERSION
       );
+      wp_localize_script('mepr-options-js', 'MeprOptionData', $local_data);
+
       wp_enqueue_script('mepr-emails-js', MEPR_JS_URL.'/admin_emails.js', array('mepr-options-js'), MEPR_VERSION);
 
       MeprHooks::do_action('mepr-options-admin-enqueue-script', $hook);
@@ -142,6 +147,8 @@ class MeprOptionsCtrl extends MeprBaseCtrl
   }
 
   public static function gateway_form() {
+    check_ajax_referer('mepr_gateway_form_nonce', 'option_nonce');
+
     if(!is_admin()) {
       die(json_encode(array('error'=>__('Unauthorized', 'memberpress'))));
     }
@@ -176,4 +183,3 @@ class MeprOptionsCtrl extends MeprBaseCtrl
     die( json_encode( array( 'form' => $form, 'id' => $obj->id ) ) );
   }
 } //End class
-

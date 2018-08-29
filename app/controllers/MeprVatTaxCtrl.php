@@ -16,7 +16,7 @@ class MeprVatTaxCtrl extends MeprBaseCtrl {
       add_filter('mepr-signup-scripts', array($this,'product_scripts'), 10, 3);
 
       // Filter for signup / payment page
-      add_action('mepr-user-signup-fields', array($this,'signup'));
+      add_action('mepr-checkout-before-submit', array($this,'signup'), 9, 1);
 
       // Validate the VAT number
       add_filter('mepr-validate-signup', array($this,'validate_signup'));
@@ -66,10 +66,12 @@ class MeprVatTaxCtrl extends MeprBaseCtrl {
   }
 
   public function validate_signup($errors) {
-    if($this->vat_calc_possible()) {
+    $prd = new MeprProduct($_POST['mepr_product_id']);
+
+    if($this->vat_calc_possible() && ($prd->price > 0.00 || ($prd->price <= 0.00 && !$prd->disable_address_fields))) {
       $country = $_POST['mepr-address-country'];
       $customer_type = $this->get_customer_type();
-      $vat_number = $_POST['mepr_vat_number'];
+      $vat_number = $this->get_vat_number();
 
       if($customer_type=='business' &&
          !empty($vat_number) &&
@@ -83,7 +85,7 @@ class MeprVatTaxCtrl extends MeprBaseCtrl {
 
   public function store_options() {
     $vat_enabled = isset($_POST['mepr_vat_enabled']);
-    $vat_country = isset($_POST['mepr_vat_country']) ? $_POST['mepr_vat_country'] : '';
+    $vat_country = isset($_POST['mepr_vat_country']) ? sanitize_text_field($_POST['mepr_vat_country']) : '';
     $vat_tax_businesses = isset($_POST['mepr_vat_tax_businesses']);
 
     update_option('mepr_vat_enabled', $vat_enabled);
@@ -91,8 +93,10 @@ class MeprVatTaxCtrl extends MeprBaseCtrl {
     update_option('mepr_vat_tax_businesses', $vat_tax_businesses);
   }
 
-  public function signup() {
-    if($this->vat_calc_possible()) {
+  public function signup($prd_id) {
+    $prd = new MeprProduct($prd_id);
+
+    if($this->vat_calc_possible() && ($prd->price > 0.00 || ($prd->price <= 0.00 && !$prd->disable_address_fields))) {
       $vat_customer_type = $this->get_customer_type();
       $vat_number = $this->get_vat_number();
 
@@ -103,33 +107,31 @@ class MeprVatTaxCtrl extends MeprBaseCtrl {
   public function process_signup($amt, $usr, $pid, $tid) {
     if($this->vat_calc_possible()) {
       if(isset($_POST['mepr_vat_customer_type'])) {
-        update_user_meta($usr->ID,'mepr_vat_customer_type',$_POST['mepr_vat_customer_type']);
+        update_user_meta($usr->ID, 'mepr_vat_customer_type', $this->get_customer_type());
       }
 
       if(isset($_POST['mepr_vat_number'])) {
-        update_user_meta($usr->ID,'mepr_vat_number',$_POST['mepr_vat_number']);
+        update_user_meta($usr->ID, 'mepr_vat_number', $this->get_vat_number());
       }
     }
   }
 
   /** VAT overrides anything that could possibly be set by the standard tax rate db tables */
   public function find_rate($tax_rate, $country, $state, $postcode, $city, $street, $usr=null) {
+    $mepr_options = MeprOptions::fetch();
+
     $countries = $this->get_vat_countries();
     $customer_type = $this->get_customer_type($usr);
     $vat_number = $this->get_vat_number($usr);
     $vat_tax_businesses = get_option('mepr_vat_tax_businesses', false);
+    $vat_country = get_option('mepr_vat_country');
 
     if(!empty($usr) && $usr instanceof MeprUser && $usr->address_is_set()) {
       $usr_country = $usr->address('country');
 
       // If the user's address is set and their country is outside the UK then bail
-      if($usr_country != $country && !array_key_exists($usr_country,$countries)) {
+      if($vat_country != $usr_country && !array_key_exists($usr_country,$countries)) {
         return $tax_rate;
-      }
-
-      // We only vat tax all businesses outside our own country if they have a valid VAT or not
-      if($vat_tax_businesses && $usr_country == $country) {
-        $vat_tax_businesses = false;
       }
     }
 
@@ -137,10 +139,11 @@ class MeprVatTaxCtrl extends MeprBaseCtrl {
     if(array_key_exists($country,$countries)) {
       // Conditions for calculating VAT or not
       // If we're taxing all businesses then vat tax validation doesn't matter
-      if($customer_type=='consumer' ||
-         ($customer_type=='business' &&
-          ($vat_tax_businesses ||
-           !$this->vat_number_is_valid($vat_number, $country)))) {
+      if( $customer_type=='consumer' ||
+          ( $customer_type=='business' &&
+            ( $vat_country==$country || // ALWAYS tax customer in our country ... even if they have a valid VAT number
+              $vat_tax_businesses ||
+              !$this->vat_number_is_valid($vat_number, $country) ) ) ) {
         $tax_rate = $this->get_rate($tax_rate, $country);
       }
     }
@@ -197,7 +200,7 @@ class MeprVatTaxCtrl extends MeprBaseCtrl {
 
   private function get_customer_type($usr=null) {
     if(array_key_exists('mepr_vat_customer_type',$_POST)) {
-      return $_POST['mepr_vat_customer_type'];
+      return sanitize_text_field($_POST['mepr_vat_customer_type']);
     }
 
     // If the vat number is empty then grab the current user info
@@ -217,7 +220,7 @@ class MeprVatTaxCtrl extends MeprBaseCtrl {
 
   private function get_vat_number($usr=null) {
     if(array_key_exists('mepr_vat_number',$_POST)) {
-      return $_POST['mepr_vat_number'];
+      return sanitize_text_field($_POST['mepr_vat_number']);
     }
 
     // If the vat number is empty then grab the current user info
@@ -236,13 +239,40 @@ class MeprVatTaxCtrl extends MeprBaseCtrl {
 
   public function vat_csv_buttons($type='monthly') {
     // Download transactions with VAT country, business/consumer, and VAT number
+
+    $totals_url = MeprUtils::admin_url(
+      'admin-ajax.php',
+      array('export_report','mepr_reports_nonce'),
+      array(
+        'action' => 'mepr_export_report',
+        'export' => $type,
+        'q'      => array(
+          'var'  => 'tax_class',
+          'val'  => 'vat',
+        )
+      ),
+      true
+    );
+
+    $countries_url = MeprUtils::admin_url(
+      'admin-ajax.php',
+      array('export_vat_countries', 'mepr_vattaxes_nonce'),
+      array(
+        'action' => 'mepr_vat_country_report',
+        'export' => $type
+      ),
+      true
+    );
+
     ?>
-    <a class="button" href="<?php echo admin_url("admin-ajax.php?action=mepr_export_report&export={$type}&q[0][var]=tax_class&q[0][val]=vat&{$_SERVER['QUERY_STRING']}"); ?>"><?php _e('Export VAT Totals', 'memberpress'); ?></a>
-    <a class="button" href="<?php echo admin_url("admin-ajax.php?action=mepr_vat_country_report&export={$type}&{$_SERVER['QUERY_STRING']}"); ?>"><?php _e('Export VAT by Country', 'memberpress'); ?></a>
+    <a class="button" href="<?php echo $totals_url; ?>"><?php _e('Export VAT Totals', 'memberpress'); ?></a>
+    <a class="button" href="<?php echo $countries_url; ?>"><?php _e('Export VAT by Country', 'memberpress'); ?></a>
     <?php
   }
 
   public function country_vat_csv() {
+    check_ajax_referer('export_vat_countries', 'mepr_vattaxes_nonce');
+
     $type = (isset($_REQUEST['export']) && !empty($_REQUEST['export']))?$_REQUEST['export']:'monthly';
 
     if($type=='monthly') {
@@ -290,12 +320,14 @@ class MeprVatTaxCtrl extends MeprBaseCtrl {
 
     $q = "
       SELECT um.meta_value AS \"" . __('Country Code', 'memberpress') . "\",
-             SUM(tr.amount) AS " . __('Total', 'memberpress') . "
+             SUM(tr.tax_amount) AS " . __('Total', 'memberpress') . "
         FROM {$mepr_db->transactions} AS tr
        INNER JOIN {$wpdb->usermeta} AS um
           ON um.user_id=tr.user_id
          AND um.meta_key='mepr-address-country'
        WHERE tr.tax_class='vat'
+         AND tr.txn_type = '".MeprTransaction::$payment_str."'
+         AND tr.status = '".MeprTransaction::$complete_str."'
        {$andmonth}
        {$andyear}
        {$andproduct}
@@ -347,4 +379,3 @@ class MeprVatTaxCtrl extends MeprBaseCtrl {
              $mepr_options->require_address_fields));
   }
 }
-

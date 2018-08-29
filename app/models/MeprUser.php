@@ -1,8 +1,7 @@
 <?php
 if(!defined('ABSPATH')) {die('You are not allowed to call this page directly.');}
 
-class MeprUser extends MeprBaseModel
-{
+class MeprUser extends MeprBaseModel {
   public static $id_str           = 'ID';
   public static $first_name_str   = 'first_name';
   public static $last_name_str    = 'last_name';
@@ -11,19 +10,36 @@ class MeprUser extends MeprBaseModel
   public static $password_str     = 'user_pass';
   public static $user_message_str = 'mepr_user_message';
   public static $uuid_str         = 'uuid';
-  public static $user_ip_str      = 'user_ip';
-
   public static $nonce_str        = 'mepr_users_nonce';
 
   // Used to prevent welcome notification from sending multiple times
   public static $signup_notice_sent_str = 'signup_notice_sent';
 
   /** Defaults to loading by id **/
-  public function __construct($id = null)
-  {
+  public function __construct($id = null) {
     $this->attrs = array();
     $this->initialize_new_user(); //A bit redundant I know - But this prevents a nasty error when Standards = STRICT in PHP
     $this->load_user_data_by_id($id);
+  }
+
+  public static function all($type='objects', $args=array(), $order_by='', $limit='') {
+    global $wpdb;
+
+    $mepr_db = MeprDb::fetch();
+
+    if($type=='objects') {
+      $records = $mepr_db->get_records($wpdb->users, $args, $order_by, $limit);
+
+      $users = array();
+      foreach($records as $record) {
+        $users[] = new MeprUser($record->ID);
+      }
+    }
+    else if($type=='ids') {
+      $users = $mepr_db->get_col($wpdb->users, 'id', $args, $order_by, $limit);
+    }
+
+    return $users;
   }
 
   public function validate() {
@@ -31,15 +47,19 @@ class MeprUser extends MeprBaseModel
     $this->validate_not_empty($this->user_login,'user_login');
   }
 
-  public function load_user_data_by_id($id = null) /*tested*/
-  {
-    if(empty($id) or !is_numeric($id))
+  public function load_user_data_by_id($id = null) {
+    if(empty($id) or !is_numeric($id)) {
       $this->initialize_new_user();
-    else
-    {
+    }
+    else {
       $wp_user_obj = MeprUtils::get_user_by('id', $id);
-      $this->load_wp_user($wp_user_obj);
-      $this->load_meta();
+      if($wp_user_obj instanceof WP_User) {
+        $this->load_wp_user($wp_user_obj);
+        $this->load_meta();
+      }
+      else {
+        $this->initialize_new_user();
+      }
     }
 
     // This must be here to ensure that we don't pull an encrypted
@@ -47,15 +67,19 @@ class MeprUser extends MeprBaseModel
     unset($this->user_pass);
   }
 
-  public function load_user_data_by_login($login = null) /*tested*/
-  {
-    if(empty($login))
+  public function load_user_data_by_login($login = null) {
+    if(empty($login)) {
       $this->initialize_new_user();
-    else
-    {
+    }
+    else {
       $wp_user_obj = MeprUtils::get_user_by('login', $login);
-      $this->load_wp_user($wp_user_obj);
-      $this->load_meta($wp_user_obj);
+      if($wp_user_obj instanceof WP_User) {
+        $this->load_wp_user($wp_user_obj);
+        $this->load_meta($wp_user_obj);
+      }
+      else {
+        $this->initialize_new_user();
+      }
     }
 
     // This must be here to ensure that we don't pull an encrypted
@@ -63,15 +87,19 @@ class MeprUser extends MeprBaseModel
     unset($this->user_pass);
   }
 
-  public function load_user_data_by_email($email = null) /*tested*/
-  {
-    if(empty($email))
+  public function load_user_data_by_email($email = null) {
+    if(empty($email)) {
       $this->initialize_new_user();
-    else
-    {
+    }
+    else {
       $wp_user_obj = MeprUtils::get_user_by('email', $email);
-      $this->load_wp_user($wp_user_obj);
-      $this->load_meta($wp_user_obj);
+      if($wp_user_obj instanceof WP_User) {
+        $this->load_wp_user($wp_user_obj);
+        $this->load_meta($wp_user_obj);
+      }
+      else {
+        $this->initialize_new_user();
+      }
     }
 
     // This must be here to ensure that we don't pull an encrypted
@@ -79,51 +107,52 @@ class MeprUser extends MeprBaseModel
     unset($this->user_pass);
   }
 
-  public function load_user_data_by_uuid($uuid = null)
-  {
+  public function load_user_data_by_uuid($uuid = null) {
     global $wpdb;
+
     $query = "SELECT * FROM {$wpdb->usermeta} WHERE meta_key = %s AND meta_value = %s LIMIT 1";
     $query = $wpdb->prepare($query, self::$uuid_str, $uuid);
     $row = $wpdb->get_row($query);
 
-    if($row and isset($row->user_id) and is_numeric($row->user_id))
+    if($row and isset($row->user_id) and is_numeric($row->user_id)) {
       return $this->load_user_data_by_id($row->user_id);
-    else
+    }
+    else {
       return false;
+    }
   }
 
-  protected function initialize_new_user()
-  {
-    if(!isset($this->attrs) or !is_array($this->attrs))
-      $this->attrs = array();
+  protected function initialize_new_user() {
+    if(!isset($this->attrs) or !is_array($this->attrs)) { $this->attrs = array(); }
 
-    $u = array( "ID"                  => null,
-                "first_name"          => null,
-                "last_name"           => null,
-                "user_login"          => null,
-                "user_nicename"       => null,
-                "user_email"          => null,
-                "user_url"            => null,
-                "user_pass"           => null,
-                "user_message"        => null,
-                "user_registered"     => null,
-                "user_activation_key" => null,
-                "user_status"         => null,
-                "user_ip"             => null,
-                "signup_notice_sent"  => null,
-                "display_name"        => null );
+    $u = array(
+      'ID'                  => null,
+      'first_name'          => null,
+      'last_name'           => null,
+      'user_login'          => null,
+      'user_nicename'       => null,
+      'user_email'          => null,
+      'user_url'            => null,
+      'user_pass'           => null,
+      'user_message'        => null,
+      'user_registered'     => null,
+      'user_activation_key' => null,
+      'user_status'         => null,
+      'signup_notice_sent'  => null,
+      'display_name'        => null
+    );
 
     // Initialize user_meta variables
-    foreach($this->attrs as $var)
+    foreach($this->attrs as $var) {
       $u[$var] = null;
+    }
 
     $this->rec = (object)$u;
 
     return $this->rec;
   }
 
-  public function load_wp_user($wp_user_obj)
-  {
+  public function load_wp_user($wp_user_obj) {
     $this->rec->ID = $wp_user_obj->ID;
     $this->rec->user_login = $wp_user_obj->user_login;
     $this->rec->user_nicename = (isset($wp_user_obj->user_nicename))?$wp_user_obj->user_nicename:'';
@@ -139,24 +168,20 @@ class MeprUser extends MeprBaseModel
     $this->rec->display_name = (isset($wp_user_obj->display_name))?$wp_user_obj->display_name:'';
   }
 
-  public function load_meta()
-  {
+  public function load_meta() {
     $this->rec->first_name = get_user_meta($this->ID, self::$first_name_str, true);
     $this->rec->last_name = get_user_meta($this->ID, self::$last_name_str, true);
     $this->rec->signup_notice_sent = get_user_meta($this->ID, self::$signup_notice_sent_str, true);
     $this->rec->user_pass = get_user_meta($this->ID, self::$password_str, true);
     $this->rec->user_message = get_user_meta($this->ID, self::$user_message_str, true);
-    $this->rec->user_ip = get_user_meta($this->ID, self::$user_ip_str, true);
     $this->rec->uuid = $this->load_uuid();
   }
 
   /** Retrieve or generate the uuid depending on whether its in the database or not */
-  public function load_uuid($force=false)
-  {
+  public function load_uuid($force = false) {
     $uuid = get_user_meta($this->ID, self::$uuid_str, true);
 
-    if($force or empty($uuid))
-    {
+    if($force or empty($uuid)) {
       $uuid = md5(base64_encode(uniqid()));
       update_user_meta($this->ID, self::$uuid_str, $uuid);
     }
@@ -165,13 +190,18 @@ class MeprUser extends MeprBaseModel
   }
 
   public function is_active() {
-    $subscriptions = $this->active_product_subscriptions();
+    $subscriptions = $this->active_product_subscriptions('ids', true);
+    return !empty($subscriptions);
+  }
+
+  public function has_expired() {
+    $subscriptions = $this->active_product_subscriptions('ids', true, false);
     return !empty($subscriptions);
   }
 
   // Determines if a user is already subscribed to a membership
   public function is_already_subscribed_to($product_id) {
-    return in_array($product_id, $this->active_product_subscriptions());
+    return in_array($product_id, $this->active_product_subscriptions('ids', true));
   }
 
   // Convenience method for checking the activity of a user on a given membership
@@ -194,14 +224,49 @@ class MeprUser extends MeprBaseModel
     return $this->is_already_subscribed_to($id);
   }
 
+  /**
+  * Used to check if a condition exists for user or the users memberships
+  * Returns: true/false
+  */
+  public function has_access_from_rule($rule_id) {
+    global $wpdb;
+    $mepr_db = new MeprDb();
+
+    $where_clause = $wpdb->prepare("
+      WHERE rule_id=%d
+      AND ((access_type='member' AND access_operator='is' AND access_condition=%s)
+      ",
+      $rule_id,
+      $this->user_login
+    );
+    $active_subscriptions = $this->active_product_subscriptions();
+    if(!empty($active_subscriptions)) {
+      $where_clause .= $wpdb->prepare(" OR (access_type='membership' AND access_operator='is' AND access_condition IN (".implode(',', array_fill(0, count($active_subscriptions), '%d'))."))", $active_subscriptions);
+    }
+    $where_clause .= ')';
+
+    $query = "
+      SELECT 1
+      FROM {$mepr_db->rule_access_conditions}
+      {$where_clause}
+      LIMIT 1
+    ";
+
+    return (1 === $wpdb->query($query));
+  }
+
   // Retrieves the current subscription within a group (with upgrade paths enabled)
-  public function subscription_in_group($group_id) {
-    $subs = MeprSubscription::get_all_active_by_user_id($this->ID);
+  public function subscription_in_group($group_id, $look_for_lapsed = false) {
+    if($group_id instanceof MeprGroup && isset($group_id->ID) && $group_id->ID) {
+      $group_id = $group_id->ID;
+    }
+
+    $subs = MeprSubscription::get_all_active_by_user_id($this->ID, "", "", false, $look_for_lapsed);
 
     if(empty($subs)) { return false; }
 
     foreach($subs as $sub_data) {
-      $sub = new MeprSubscription($sub_data->ID);
+      $sub = new MeprSubscription($sub_data->id);
       $prd = $sub->product();
       if($prd->group_id==$group_id) { return $sub; }
     }
@@ -210,13 +275,17 @@ class MeprUser extends MeprBaseModel
   }
 
   public function lifetime_subscription_in_group($group_id) {
+    if($group_id instanceof MeprGroup && isset($group_id->ID) && $group_id->ID) {
+      $group_id = $group_id->ID;
+    }
+
     $txns = $this->active_product_subscriptions('transactions');
 
     if(empty($txns)) { return false; }
 
-    foreach( $txns as $txn ) {
+    foreach($txns as $txn) {
       $p = $txn->product();
-      if($p->is_one_time_payment() and $p->group_id==$group_id) { return $txn; }
+      if((int)$txn->subscription_id == 0 && $p->group_id == $group_id) { return $txn; }
     }
 
     return false;
@@ -239,17 +308,20 @@ class MeprUser extends MeprBaseModel
     if(!isset($items) || !is_array($items)) { $items = array(); }
 
     // Setup caching array for this user
-    if(!isset($items[$user_id]) || !is_array($items[$user_id])) { $item[$user_id] = array(); }
+    if(!isset($items[$user_id]) || !is_array($items[$user_id])) { $items[$user_id] = array(); }
 
     //I'm assuming we may run into instances where we need to force the query to run
     //so $force should allow that
     if($force || !isset($items[$user_id][$return_type]) || !is_array($items[$user_id][$return_type])) {
-      $txns = MeprTransaction::get_all_complete_by_user_id( $user_id, // user_id
-                                                            'product_id, created_at DESC', // order_by
-                                                            '', // limit
-                                                            false, // count
-                                                            $exclude_expired, // exclude_expired
-                                                            true ); // include_confirmations
+      $txns = MeprTransaction::get_all_complete_by_user_id(
+        $user_id, // user_id
+        'product_id, created_at DESC', // order_by
+        '', // limit
+        false, // count
+        $exclude_expired, // exclude_expired
+        true, // include_confirmations
+        true // allow custom where clause override
+      );
 
       $items[$user_id][$return_type] = array();
 
@@ -269,7 +341,7 @@ class MeprUser extends MeprBaseModel
     return $items[$user_id][$return_type];
   }
 
-  public function get_active_subscription_titles( $sep = ', ' ) {
+  public function get_active_subscription_titles($sep = ', ') {
     $formatted_titles = '';
     $res = $this->active_product_subscriptions();
 
@@ -277,21 +349,41 @@ class MeprUser extends MeprBaseModel
       // don't list the same name multiple times
       $products = array_values(array_unique( $res ));
       $titles = array();
+
       for($i = 0; $i < count($products); $i++) {
         $titles[] = get_the_title($products[$i]);
       }
+
       sort($titles);
+
       $formatted_titles = implode( $sep, $titles );
     }
 
     return $formatted_titles;
   }
 
+  //Gets the product_id's of the subscriptions this user has which are marked as "Enabled"
+  //This does NOT mean they are active, just that they are recurring and marked as "Enabled"
+  public function get_enabled_product_ids($prd_id = null) {
+    global $wpdb;
+    $mepr_db = new MeprDb();
+
+    $q = $wpdb->prepare("SELECT product_id FROM {$mepr_db->subscriptions} WHERE status = %s AND user_id = %d", MeprSubscription::$active_str, $this->ID);
+
+    if(isset($prd_id) && $prd_id) {
+      $q .= " " . $wpdb->prepare("AND product_id = %d", $prd_id);
+    }
+
+    $res = $wpdb->get_col($q);
+
+    return array_unique($res);
+  }
+
   // $who should be 1 (row) object in the $product->who_can_purchase array.
-  public function can_user_purchase($who) {
+  public function can_user_purchase($who, $curr_prd_id = 0) {
     $current_subscriptions  = $this->active_product_subscriptions('ids');
-    $all_subscriptions      = $this->active_product_subscriptions('ids', false, false);
-    $expired_subscriptions  = array_diff($all_subscriptions, $current_subscriptions);
+    $all_subscriptions      = $this->active_product_subscriptions('ids', true, false); //We need to force here, and we do not want to exclude expired
+    $expired_subscriptions  = array_diff($all_subscriptions, $current_subscriptions); //return values from $all_subscriptions which are NOT also present in $current_subscriptions
 
     //User is not currently subscribed to something
     if($who->product_id == 'nothing') { return empty($current_subscriptions); }
@@ -300,34 +392,70 @@ class MeprUser extends MeprBaseModel
     if($who->product_id == 'anything') { return !empty($current_subscriptions); }
 
     //user has previously purchased this membership level
-    if($who->product_id == 'subscribed-before') { return in_array($who->product_id, $expired_subscriptions); }
+    if($who->product_id == 'subscribed-before') { return in_array($curr_prd_id, $all_subscriptions); }
 
-    //user has NOT previously purchased this membersihp level before
-    if($who->product_id == 'not-subscribed-before') { return !in_array($who->product_id, $all_subscriptions); }
+    //user has NOT previously purchased this membership level before
+    if($who->product_id == 'not-subscribed-before') { return !in_array($curr_prd_id, $all_subscriptions); }
 
     //Now let's check if the actual membership ID is in the user's active subscriptions or not
     return in_array($who->product_id, $current_subscriptions);
+  }
+
+  public function fallback_txn($product_id) {
+    global $wpdb;
+    $mepr_db = new MeprDb();
+
+    $query = $wpdb->prepare("
+      SELECT id FROM {$mepr_db->transactions}
+      WHERE user_id = %d
+        AND product_id = %d
+        AND gateway = %s
+      ",
+      $this->ID,
+      $product_id,
+      MeprTransaction::$fallback_gateway_str
+    );
+
+    $result =  $wpdb->get_var($query);
+    if($result) {
+      return new MeprTransaction($result);
+    }
+    else {
+      return false;
+    }
   }
 
   public function get_full_name() {
     return $this->full_name();
   }
 
-  public function full_name()
-  {
-    return "{$this->first_name} {$this->last_name}";
+  public function full_name() {
+    $name = "";
+
+    if(!empty($this->first_name)) {
+      $name = $this->first_name;
+    }
+
+    if(!empty($this->last_name)) {
+      if(empty($name)) {
+        $name = $this->last_name;
+      }
+      else {
+        $name .= " {$this->last_name}";
+      }
+    }
+
+    return $name;
   }
 
   //Should make sure user is logged in before calling this function
-  public static function get_current_user_registration_date()
-  {
+  public static function get_current_user_registration_date() {
     global $user_ID;
 
     return self::get_user_registration_date($user_ID);
   }
 
-  public static function get_user_registration_date($user_id)
-  {
+  public static function get_user_registration_date($user_id) {
     global $wpdb;
 
     $q = "SELECT `user_registered` FROM {$wpdb->users} WHERE ID=%d";
@@ -340,7 +468,7 @@ class MeprUser extends MeprBaseModel
   /** This used to be called "get_ts_of_product_signup" */
   public static function get_user_product_signup_date($user_id, $product_id) {
     global $wpdb;
-    $mepr_db = new MeprDb();
+    $mepr_db = MeprDb::fetch();
     $prd = new MeprProduct($product_id);
 
     //If this is a renewal type product, we should grab the first txn instead of the last
@@ -352,13 +480,14 @@ class MeprUser extends MeprBaseModel
             FROM {$mepr_db->transactions}
             WHERE product_id = %d
               AND user_id = %d
-              AND ( (txn_type = %s AND status = %s) OR (txn_type = %s AND status = %s) )
+              AND ( (txn_type IN (%s,%s) AND status = %s) OR (txn_type = %s AND status = %s) )
           ORDER BY id {$order}
           LIMIT 1";
     $q =  $wpdb->prepare( $q,
                           $product_id,
                           $user_id,
                           MeprTransaction::$payment_str,
+                          MeprTransaction::$sub_account_str,
                           MeprTransaction::$complete_str,
                           MeprTransaction::$subscription_confirmation_str,
                           MeprTransaction::$confirmed_str
@@ -375,16 +504,24 @@ class MeprUser extends MeprBaseModel
     $sub = $txn->subscription();
     if(empty($sub)) { return $txn->created_at; }
 
-    //Get the first txn in this $sub
-    $_REQUEST['mepr_get_real_payment'] = true; //Try to get a real payment instead of a confirmation txn
+    //Get the first real payment txn in this $sub unless it had a free trial - if free trial then we want the drips to start when the free trial started, not when the first payment happened
+    if(!$sub->trial || ($sub->trial && $sub->trial_amount > 0.00)) {
+      $_REQUEST['mepr_get_real_payment'] = true; //Try to get a real payment instead of a confirmation txn
+    }
+
     $first_txn = $sub->first_txn();
 
-    return $first_txn->created_at;
+    if($first_txn == false || !($first_txn instanceof MeprTransaction)) {
+      return false;
+    }
+    else {
+      return $first_txn->created_at;
+    }
   }
 
   public static function get_user_product_expires_at_date($user_id, $product_id, $return_txn = false) {
     global $wpdb;
-    $mepr_db = new MeprDb();
+    $mepr_db = MeprDb::fetch();
 
     $select = ($return_txn)?"id":"expires_at";
 
@@ -406,11 +543,10 @@ class MeprUser extends MeprBaseModel
     }
     else {
       $id = wp_insert_user((array)$this->rec);
-      $this->user_ip = $_SERVER['REMOTE_ADDR'];
     }
 
-    if(empty($id) or is_wp_error($id)) {
-      throw new MeprCreateException(sprintf(__( 'The user was unable to be saved.', 'memberpress')));
+    if(is_wp_error($id)) {
+      throw new MeprCreateException(sprintf(__('The user was unable to be saved: %s', 'memberpress'), $id->get_error_message()));
     }
     else {
       $this->rec->ID = $id;
@@ -430,7 +566,6 @@ class MeprUser extends MeprBaseModel
     update_user_meta($this->ID, self::$first_name_str, $this->first_name);
     update_user_meta($this->ID, self::$last_name_str,  $this->last_name);
     update_user_meta($this->ID, self::$signup_notice_sent_str, $this->signup_notice_sent);
-    update_user_meta($this->ID, self::$user_ip_str, $this->user_ip);
   }
 
   // alias of store_meta
@@ -453,34 +588,35 @@ class MeprUser extends MeprBaseModel
     return (!empty($stored_key) and ($key == $stored_key));
   }
 
-  public function send_reset_password_requested_notification() {
+  public function send_reset_password_requested_notification($force_send = false) {
     static $already_sent;
 
     //prevent dup emails
-    if($already_sent === true) {
+    if(!$force_send && $already_sent === true) {
       return;
     }
 
     $already_sent = true;
 
-
     $mepr_options = MeprOptions::fetch();
     $mepr_blogname = get_option('blogname');
     $mepr_blogurl = home_url();
 
-    $key = md5(time().$this->ID);
-    update_user_meta($this->ID, 'mepr_reset_password_key', $key);
-
-    $reset_password_link = $this->reset_password_link($key);
+    $reset_password_link = $this->reset_password_link();
     $recipient = $this->formatted_email();
 
     /* translators: In this string, %s is the Blog Name/Title */
     $subject = sprintf( __("[%s] Password Reset", 'memberpress'), $mepr_blogname);
 
-    /* translators: In this string, %1$s is the user's username, %2$s is the blog's name/title, %3$s is the blog's url, %4$s the reset password link */
-    $message = sprintf(__("Someone requested to reset your password for %1\$s on %2\$s at %3\$s\n\nTo reset your password visit the following address, otherwise just ignore this email and nothing will happen.\n\n%4\$s", 'memberpress'), $this->user_login, $mepr_blogname, $mepr_blogurl, $reset_password_link);
+    ob_start();
+    ?>
+      <p><?php echo sprintf(_x("Someone requested to reset your password for %1\$s on %2\$s at %3\$s", 'ui', 'memberpress'), $this->user_login, $mepr_blogname, $mepr_blogurl); ?></p>
+      <p><?php echo _x("To reset your password visit the following address, otherwise just ignore this email and nothing will happen.", 'ui', 'memberpress'); ?></p>
+      <p><a href="<?php echo $reset_password_link; ?>"><?php echo $reset_password_link; ?></a></p>
+    <?php
+    $message = ob_get_clean();
 
-    MeprUtils::wp_mail($recipient, $subject, $message);
+    MeprUtils::wp_mail($recipient, $subject, $message, array("Content-Type: text/html"));
   }
 
   public function set_password_and_send_notifications($key, $password) {
@@ -519,13 +655,26 @@ class MeprUser extends MeprBaseModel
       $recipient = $this->formatted_email();
 
       /* translators: In this string, %s is the Blog Name/Title */
-      $subject = sprintf(__("[%s] Your new Password", 'memberpress'), $mepr_blogname);
-      $password_message = __('Successfully reset', 'memberpress');
+      $subject = sprintf(_x("[%s] Your new Password", 'ui', 'memberpress'), $mepr_blogname);
+      $password_message = _x('', 'ui', 'memberpress');
 
-      /* translators: In this string, %1$s is the user's first name, %2$s is the blog's name/title, %3$s is the user's username, %4$s is the user's password, and %5$s is the blog's URL... */
-      $message = sprintf(__("%1\$s,\n\nYour password was successfully reset on %2\$s!\n\nUsername: %3\$s\nPassword: *** %4\$s ***\n\nYou can login here: %5\$s", 'memberpress'), (empty($this->first_name)?$this->user_login:$this->first_name), $mepr_blogname, $this->user_login, $password_message, $login_link);
+      ob_start();
+      ?>
+        <p>
+          <?php echo (empty($this->first_name)?$this->user_login:$this->first_name); ?>,
+          <br/>
+          <?php echo sprintf(_x("Your password was successfully reset on %1\$s!", 'ui', 'memberpress'), $mepr_blogname); ?>
+        </p>
+        <p>
+          <?php echo sprintf(_x("Username: %1\$s", 'ui', 'memberpress'), $this->user_login); ?>
+          <br/>
+          <?php echo _x("Password: *** Successfully Reset ***", 'ui', 'memberpress'); ?>
+        </p>
+        <p><?php echo sprintf(_x("You can now login here: %1\$s", 'ui', 'memberpress'), $login_link); ?></p>
+      <?php
+      $message = ob_get_clean();
 
-      MeprUtils::wp_mail($recipient, $subject, $message);
+      MeprUtils::wp_mail($recipient, $subject, $message, array("Content-Type: text/html"));
 
       return true;
     }
@@ -569,20 +718,24 @@ class MeprUser extends MeprBaseModel
       if(empty($user_login))
         $errors[] = __('Username must not be blank','memberpress');
 
-      if(!preg_match('#^[a-zA-Z0-9_@\.\-\+]+$#', $user_login))
+      if(!$mepr_options->username_is_email && !preg_match('#^[a-zA-Z0-9_@\.\-\+]+$#', $user_login)) //emails can have a few more characters - so let's not block an email here
         $errors[] = __('Username must only contain letters, numbers and/or underscores', 'memberpress');
 
-      if(username_exists($user_login))
-        $errors[] = __('Username is Already Taken.', 'memberpress');
+      if(username_exists($user_login)) {
+        $current_url = urlencode(esc_url($_SERVER['REQUEST_URI']));
+        $login_url = $mepr_options->login_page_url("redirect_to={$current_url}");
 
-      if(!is_email($user_email))
+        $errors[] = sprintf(__('This username has already been taken. If you are an existing user, please %sLogin%s first. You will be redirected back here to complete your sign-up afterwards.', 'memberpress'), "<a href=\"{$login_url}\"><strong>", "</strong></a>");
+      }
+
+      if(!is_email(stripslashes($user_email)))
         $errors[] = __('Email must be a real and properly formatted email address', 'memberpress');
 
       if(email_exists($user_email)) {
-        $current_url = urlencode($_SERVER['REQUEST_URI']);
+        $current_url = urlencode(esc_url($_SERVER['REQUEST_URI']));
         $login_url = $mepr_options->login_page_url("redirect_to={$current_url}");
 
-        $errors[] = sprintf(__('This email address has already been used. Please %sLogin%s to complete your purchase.', 'memberpress'), "<a href=\"{$login_url}\"><strong>", "</strong></a>");
+        $errors[] = sprintf(__('This email address has already been used. If you are an existing user, please %sLogin%s to complete your purchase. You will be redirected back here to complete your sign-up afterwards.', 'memberpress'), "<a href=\"{$login_url}\"><strong>", "</strong></a>");
       }
 
       if(empty($mepr_user_password))
@@ -595,7 +748,7 @@ class MeprUser extends MeprBaseModel
         $errors[] = __('Your Password and Password Confirmation don\'t match.', 'memberpress');
 
       //Honeypot
-      if(!isset($mepr_no_val) || (isset($mepr_no_val) && !empty($mepr_no_val)))
+      if((isset($mepr_no_val) && !empty($mepr_no_val)))
         $errors[] = __('Only humans are allowed to register.', 'memberpress');
     }
 
@@ -608,6 +761,9 @@ class MeprUser extends MeprBaseModel
 
     if($mepr_options->require_tos && !isset($mepr_agree_to_tos) && !isset($logged_in_purchase)) //Make sure not logged in purchase
       $errors[] = __('You must agree to the Terms of Service', 'memberpress');
+
+    if($mepr_options->require_privacy_policy && !isset($mepr_agree_to_privacy_policy)) //Make sure not logged in purchase
+      $errors[] = __('You must agree to the Privacy Policy', 'memberpress');
 
     $product = new MeprProduct($mepr_product_id);
     $product_coupon_code = isset($mepr_coupon_code) ? $mepr_coupon_code : null;
@@ -659,13 +815,18 @@ class MeprUser extends MeprBaseModel
 
     if(is_email($log)) {
       $user = get_user_by('email', $log);
+
+      //Try one more thing before giving up in case their username is an email address but doesn't match their current email address (user_email != user_login)
+      if($user === false) {
+        $user = get_user_by('login', $log);
+      }
     }
     else {
       $user = get_user_by('login', $log);
     }
 
     if($user === false) {
-      $errors[] = __('Your username is incorrect', 'memberpress');
+      $errors[] = __('Your username or password was incorrect', 'memberpress');
     }
 
     //If no errors at this point, let's check their password
@@ -695,7 +856,12 @@ class MeprUser extends MeprBaseModel
   }
 
   public static function validate_reset_password($params, $errors) {
+    $mepr_options = MeprOptions::fetch();
     extract($params);
+
+    if($mepr_options->enforce_strong_password && isset($_POST['mp-pass-strength']) && (int)$_POST['mp-pass-strength'] < MeprZxcvbnCtrl::get_required_int()) {
+      $errors[] = __('Your password must meet the minimum strength requirement.', 'memberpress');
+    }
 
     if(empty($mepr_user_password))
       $errors[] = __('You must enter a Password.', 'memberpress');
@@ -722,9 +888,39 @@ class MeprUser extends MeprBaseModel
     return (!empty($renewals) and in_array($txn_id, $renewals));
   }
 
+  public function subscriptions() {
+    $table = MeprSubscription::account_subscr_table(
+      'created_at', 'DESC',
+      '', '', 'any', '', false,
+      array(
+        'member' => $this->rec->user_login,
+        'statuses' => array(
+          MeprSubscription::$active_str,
+          MeprSubscription::$suspended_str,
+          MeprSubscription::$cancelled_str
+        )
+      ),
+      MeprHooks::apply_filters('mepr_user_subscriptions_query_cols', array('id','created_at'))
+    );
+
+    $subscriptions = array();
+    foreach($table['results'] as $row) {
+      if($row->sub_type == 'subscription') {
+        $sub = new MeprSubscription($row->id);
+      }
+      else if($row->sub_type == 'transaction') {
+        $sub = new MeprTransaction($row->id);
+      }
+
+      $subscriptions[] = MeprHooks::apply_filters('mepr_user_subscriptions_customize_subscription', $sub, $row, $this);
+    }
+
+    return $subscriptions;
+  }
+
   public function transactions($where = null, $order = 'created_at', $sort = 'DESC') {
     global $wpdb;
-    $mepr_db = new MeprDb();
+    $mepr_db = MeprDb::fetch();
 
     $conditions = $wpdb->prepare("WHERE user_id=%d", $this->ID);
 
@@ -742,14 +938,19 @@ class MeprUser extends MeprBaseModel
     return $wpdb->get_results($q);
   }
 
+  //Does NOT get sub confirmation txns
+  //For right now this is only used for Reminders, but could be used in other places
   public function transactions_for_product($product_id, $expired = false, $non_expired = false) {
     global $wpdb;
 
-    $operator = ($expired ? '<=' : '>=');
+    $operator = ($expired) ? '<=' : '>=';
+    $db_lifetime = ($expired) ? '' : $wpdb->prepare('OR expires_at IS NULL OR expires_at = %s', MeprUtils::db_lifetime());
     $where = $wpdb->prepare(
-      "product_id = %d AND expires_at {$operator} %s",
+      "product_id = %d AND (expires_at {$operator} %s {$db_lifetime}) AND txn_type = %s AND status = %s",
       $product_id,
-      date('c')
+      gmdate('c'),
+      MeprTransaction::$payment_str,
+      MeprTransaction::$complete_str
     );
 
     return $this->transactions($where);
@@ -758,7 +959,7 @@ class MeprUser extends MeprBaseModel
   public function recent_transactions($limit=5) {
     global $wpdb;
 
-    $mepr_db = new MeprDb();
+    $mepr_db = MeprDb::fetch();
 
     $q = $wpdb->prepare("
         SELECT id
@@ -786,19 +987,15 @@ class MeprUser extends MeprBaseModel
   public function recent_subscriptions($limit=5) {
     global $wpdb;
 
-    $mepr_db = new MeprDb();
+    $mepr_db = MeprDb::fetch();
 
     $q = $wpdb->prepare("
-        SELECT p.ID
-          FROM {$wpdb->posts} as p
-          JOIN {$wpdb->postmeta} as pm
-            ON pm.post_id=p.ID
-           AND pm.meta_key=%s
-         WHERE pm.meta_value=%s
+        SELECT sub.id
+          FROM {$mepr_db->subscriptions} AS sub
+         WHERE sub.user_id = %d
          ORDER BY id DESC
          LIMIT %d
       ",
-      MeprSubscription::$user_id_str,
       $this->ID,
       $limit
     );
@@ -857,25 +1054,32 @@ class MeprUser extends MeprBaseModel
     return '';
   }
 
-  public function reset_password_link($key) {
+  public function reset_password_link() {
     $mepr_options = MeprOptions::fetch();
+
+    $key = md5(time().$this->ID);
+    update_user_meta($this->ID, 'mepr_reset_password_key', $key);
+
     $permalink = $mepr_options->login_page_url();
     $delim = MeprAppCtrl::get_param_delimiter_char($permalink);
+
     return "{$permalink}{$delim}action=reset_password&mkey={$key}&u=".urlencode($this->user_login);
   }
 
   //Returns a list of product ids that the user has or is currently subscribed to
   public function current_and_prior_subscriptions() {
     global $wpdb;
-    $mepr_db = new MeprDb();
+    $mepr_db = MeprDb::fetch();
 
     $q = "SELECT DISTINCT(product_id)
             FROM {$mepr_db->transactions}
           WHERE user_id = %d
-            AND ( (txn_type = %s AND status = %s) OR ((txn_type = %s AND status = %s)) )";
+            AND ( (txn_type IN (%s,%s,%s) AND status = %s) OR ((txn_type = %s AND status = %s)) )";
 
     $q = $wpdb->prepare($q, $this->ID,
                             MeprTransaction::$payment_str,
+                            MeprTransaction::$sub_account_str,
+                            MeprTransaction::$fallback_str,
                             MeprTransaction::$complete_str,
                             MeprTransaction::$subscription_confirmation_str,
                             MeprTransaction::$confirmed_str);
@@ -885,44 +1089,37 @@ class MeprUser extends MeprBaseModel
 
   public function subscription_expirations($type='all', $exclude_stopped=false) {
     global $wpdb;
-    $mepr_db = new MeprDb();
+    $mepr_db = MeprDb::fetch();
 
     $exp_op = (($type=='expired')?'<=':'>');
 
     // Get all recurring subscriptions that
     // are expired but still have an active status
-    $query = "SELECT p.ID as ID, tr.expires_at AS expires_at " .
-               "FROM {$wpdb->posts} AS p " .
-               "JOIN {$wpdb->postmeta} AS pm_user_id " .
-                 "ON pm_user_id.post_id = p.ID " .
-                "AND pm_user_id.meta_key = %s " .
-                "AND pm_user_id.meta_value = %s " .
-               "JOIN {$wpdb->postmeta} AS pm_status " .
-                 "ON pm_status.post_id = p.ID " .
-                "AND pm_status.meta_key = %s " .
+    $query = "SELECT sub.id as id, tr.expires_at AS expires_at " .
+               "FROM {$mepr_db->subscriptions} AS sub " .
                "JOIN {$mepr_db->transactions} AS tr " .
                  "ON tr.id = ( CASE " .
                               // When 1 or more lifetime txns exist for this sub
                               "WHEN ( SELECT COUNT(*) " .
                                        "FROM {$mepr_db->transactions} AS etc " .
-                                      "WHERE etc.subscription_id=p.ID " .
+                                      "WHERE etc.subscription_id=sub.id " .
                                         "AND etc.status IN (%s,%s) " .
                                         "AND etc.expires_at=%s ) > 0 " .
                               // Use the latest lifetime txn for expiring_txn
                               "THEN ( SELECT max(etl.id) " .
                                        "FROM {$mepr_db->transactions} AS etl " .
-                                      "WHERE etl.subscription_id=p.ID " .
+                                      "WHERE etl.subscription_id=sub.id " .
                                         "AND etl.status IN (%s,%s) " .
                                         "AND etl.expires_at=%s ) " .
                               // Otherwise use the latest complete txn for expiring_txn
                               "ELSE ( SELECT etr.id " .
                                        "FROM {$mepr_db->transactions} AS etr " .
-                                      "WHERE etr.subscription_id=p.ID " .
+                                      "WHERE etr.subscription_id=sub.id " .
                                         "AND etr.status IN (%s,%s) " .
                                       "ORDER BY etr.expires_at DESC " .
                                       "LIMIT 1 ) " .
                               "END ) " .
-              "WHERE p.post_type = %s " .
+              "WHERE sub.user_id=%d " .
                 "AND tr.expires_at IS NOT NULL " .
                 "AND tr.expires_at > %s " .
                 "AND DATE_ADD(tr.created_at, INTERVAL 1 DAY) <= %s " . //At least a day old here
@@ -930,25 +1127,22 @@ class MeprUser extends MeprBaseModel
 
     $query = $wpdb->prepare(
       $query,
-      MeprSubscription::$user_id_str,
-      $this->ID,
-      MeprSubscription::$status_str,
       MeprTransaction::$complete_str,
       MeprTransaction::$confirmed_str,
-      MeprUtils::mysql_lifetime(),
+      MeprUtils::db_lifetime(),
       MeprTransaction::$complete_str,
       MeprTransaction::$confirmed_str,
-      MeprUtils::mysql_lifetime(),
+      MeprUtils::db_lifetime(),
       MeprTransaction::$complete_str,
       MeprTransaction::$confirmed_str,
-      MeprSubscription::$cpt,
-      MeprUtils::mysql_lifetime(),
-      MeprUtils::mysql_now(),
-      MeprUtils::mysql_now()
+      $this->ID, // User ID
+      MeprUtils::db_lifetime(),
+      MeprUtils::db_now(),
+      MeprUtils::db_now()
     );
 
     if( $exclude_stopped ) {
-      $query .= $wpdb->prepare( " AND pm_status.meta_value = %s", MeprSubscription::$active_str );
+      $query .= $wpdb->prepare( " AND sub.status = %s", MeprSubscription::$active_str );
     }
 
     $res = $wpdb->get_results( $query );
@@ -958,7 +1152,7 @@ class MeprUser extends MeprBaseModel
 
   public function get_num_logins()
   {
-    $mepr_db = new MeprDb();
+    $mepr_db = MeprDb::fetch();
     $args = array( 'evt_id_type' => MeprEvent::$users_str,
                    'evt_id' => $this->ID,
                    'event' => MeprEvent::$login_event_str );
@@ -966,7 +1160,7 @@ class MeprUser extends MeprBaseModel
   }
 
   public function get_last_login_data() {
-    $mepr_db = new MeprDb();
+    $mepr_db = MeprDb::fetch();
     $args = array( 'evt_id_type' => MeprEvent::$users_str,
                    'evt_id' => $this->ID,
                    'event' => MeprEvent::$login_event_str );
@@ -975,30 +1169,30 @@ class MeprUser extends MeprBaseModel
   }
 
   public function set_address($params) {
-    update_user_meta($this->ID, 'mepr-address-one',     $params['mepr-address-one']);
-    update_user_meta($this->ID, 'mepr-address-two',     $params['mepr-address-two']);
-    update_user_meta($this->ID, 'mepr-address-city',    $params['mepr-address-city']);
-    update_user_meta($this->ID, 'mepr-address-state',   $params['mepr-address-state']);
-    update_user_meta($this->ID, 'mepr-address-zip',     $params['mepr-address-zip']);
-    update_user_meta($this->ID, 'mepr-address-country', $params['mepr-address-country']);
+    update_user_meta($this->ID, 'mepr-address-one',     sanitize_text_field(wp_unslash($params['mepr-address-one'])));
+    update_user_meta($this->ID, 'mepr-address-two',     sanitize_text_field(wp_unslash($params['mepr-address-two'])));
+    update_user_meta($this->ID, 'mepr-address-city',    sanitize_text_field(wp_unslash($params['mepr-address-city'])));
+    update_user_meta($this->ID, 'mepr-address-state',   sanitize_text_field(wp_unslash($params['mepr-address-state'])));
+    update_user_meta($this->ID, 'mepr-address-zip',     sanitize_text_field(wp_unslash($params['mepr-address-zip'])));
+    update_user_meta($this->ID, 'mepr-address-country', sanitize_text_field(wp_unslash($params['mepr-address-country'])));
   }
 
-  public function full_address() {
+  public function full_address($fallback_to_biz_addr=true) {
     return array(
-      'mepr-address-one'     => $this->address('one'),
-      'mepr-address-two'     => $this->address('two'),
-      'mepr-address-city'    => $this->address('city'),
-      'mepr-address-state'   => $this->address('state'),
-      'mepr-address-zip'     => $this->address('zip'),
-      'mepr-address-country' => $this->address('country')
+      'mepr-address-one'     => $this->address('one',     $fallback_to_biz_addr),
+      'mepr-address-two'     => $this->address('two',     $fallback_to_biz_addr),
+      'mepr-address-city'    => $this->address('city',    $fallback_to_biz_addr),
+      'mepr-address-state'   => $this->address('state',   $fallback_to_biz_addr),
+      'mepr-address-zip'     => $this->address('zip',     $fallback_to_biz_addr),
+      'mepr-address-country' => $this->address('country', $fallback_to_biz_addr)
     );
   }
 
-  public function address($field) {
+  public function address($field, $fallback_to_biz_addr=true) {
     if($this->address_is_set()) {
       return get_user_meta( $this->ID, "mepr-address-{$field}", true );
     }
-    else {
+    else if($fallback_to_biz_addr) {
       $mepr_options = MeprOptions::fetch();
 
       if($mepr_options->attr('tax_default_address')=='none') {
@@ -1016,6 +1210,9 @@ class MeprUser extends MeprBaseModel
         }
       }
     }
+    else {
+      return '';
+    }
   }
 
   public function address_is_set() {
@@ -1029,8 +1226,27 @@ class MeprUser extends MeprBaseModel
     return (!empty($country) && !empty($postcode) && !empty($state) && !empty($city) && !empty($one));
   }
 
+  /**
+  * Check if address fields are required for active products
+  * @return boolean
+  */
+  public function show_address_fields() {
+    $active_products = $this->active_product_subscriptions('products');
+    foreach($active_products as $product) {
+      if(!$product->disable_address_fields) {
+        return true;
+      }
+    }
+    return empty($active_products); //If the user has no memberships, let's just show the address fields
+  }
+
   public function tax_rate() {
     $mepr_options = MeprOptions::fetch();
+
+    //No taxes enabled?
+    if(!get_option('mepr_calculate_taxes', false)) {
+      return new MeprTaxRate();
+    }
 
     $country  = $mepr_options->attr('biz_country');
     $state    = $mepr_options->attr('biz_state');
@@ -1110,8 +1326,13 @@ class MeprUser extends MeprBaseModel
 
   public static function is_account_page($post) {
     $mepr_options = MeprOptions::fetch();
-    return (($post instanceof WP_Post && $post->ID == $mepr_options->account_page_id) ||
-             self::manually_place_account_form($post));
+
+    $is_account_page = (
+        ($post instanceof WP_Post && $post->ID == $mepr_options->account_page_id) ||
+        self::manually_place_account_form($post)
+    );
+
+    return MeprHooks::apply_filters( 'mepr_is_account_page', $is_account_page, $post);
   }
 
   public static function is_login_page($post) {
@@ -1181,7 +1402,7 @@ class MeprUser extends MeprBaseModel
     //Not sure why this would happen, but if it does let's return an empty array
     if(empty($slugs)) { return array(); }
 
-    //array unique the slugs for fun
+    //array unique the slugs for fun (SORT_STRING requires php 5.2.9+
     $slugs = array_unique($slugs, SORT_STRING);
 
     // Pull in the fields that are actually called out in the slugs array
@@ -1191,5 +1412,1135 @@ class MeprUser extends MeprBaseModel
 
     return $rows;
   }
-} //End class
 
+  // We have to bypass the magic attribute for this since it's a special property
+  public function set_password($password) {
+    $this->rec->user_pass = $password;
+  }
+
+  public function update_txn_meta() {
+    $latest_txn = $this->latest_txn;
+    if($latest_txn != false && $latest_txn instanceof MeprTransaction && $latest_txn->id > 0) {
+      update_user_meta($this->ID, 'mepr_latest_txn_date', $latest_txn->created_at);
+    }
+    else {
+      update_user_meta($this->ID, 'mepr_latest_txn_date', false);
+    }
+
+    update_user_meta($this->ID, 'mepr_txn_count', $this->txn_count);
+    update_user_meta($this->ID, 'mepr_active_txn_count', $this->active_txn_count);
+    update_user_meta($this->ID, 'mepr_expired_txn_count', $this->expired_txn_count);
+    update_user_meta($this->ID, 'mepr_total_spent', $this->total_spent);
+    update_user_meta($this->ID, 'mepr_memberships', $this->memberships);
+  }
+
+  public static function list_table( $order_by = '',
+                                     $order = '',
+                                     $paged = '',
+                                     $search = '',
+                                     $search_field = 'any',
+                                     $perpage = 10,
+                                     $params = null,
+                                     $include_fields = false ) {
+    global $wpdb;
+    $mepr_db = MeprDb::fetch();
+
+    if(is_null($params)) { $params=$_GET; }
+
+    $mepr_options = MeprOptions::fetch();
+
+    if(empty($order_by)) {
+      $order_by = 'registered';
+      $order = 'DESC';
+    }
+
+    $cols = array(
+      'ID' => 'u.ID',
+      'username' => 'u.user_login',
+      'email' => 'u.user_email',
+      'name' => 'CONCAT(pm_last_name.meta_value, ", ", pm_first_name.meta_value)',
+      'first_name' => 'pm_first_name.meta_value',
+      'last_name' => 'pm_last_name.meta_value',
+      'txn_count' => 'IFNULL(m.txn_count,0)',
+      'active_txn_count' => 'IFNULL(m.active_txn_count,0)',
+      'expired_txn_count' => 'IFNULL(m.expired_txn_count,0)',
+      'trial_txn_count' => 'IFNULL(m.trial_txn_count,0)',
+      'sub_count' => 'IFNULL(m.sub_count,0)',
+      'active_sub_count' => 'IFNULL(m.active_sub_count,0)',
+      'pending_sub_count' => 'IFNULL(m.pending_sub_count,0)',
+      'suspended_sub_count' => 'IFNULL(m.suspended_sub_count,0)',
+      'cancelled_sub_count' => 'IFNULL(m.cancelled_sub_count,0)',
+      'latest_txn_date' => 'IFNULL(latest_txn.created_at,NULL)',
+      'first_txn_date' => 'IFNULL(first_txn.created_at,NULL)',
+      'status' => 'CASE WHEN active_txn_count>0 THEN "active" WHEN trial_txn_count>0 THEN "active" WHEN expired_txn_count>0 THEN "expired" ELSE "none" END',
+      'memberships' => 'IFNULL(m.memberships,"")',
+      'last_login_date' => 'IFNULL(last_login.created_at, NULL)',
+      'login_count' => 'IFNULL(m.login_count,0)',
+      'total_spent' => 'IFNULL(m.total_spent,0.00)',
+      'registered' => 'u.user_registered',
+    );
+
+    $args = array();
+
+    if(is_multisite()) {
+      //$blog_id = get_current_blog_id();
+      //$blog_user_ids = get_users(array('blog_id'=>$blog_id,'fields'=>'ID'));
+      //$args[] = 'u.ID IN (' . implode(',',$blog_user_ids) . ')';
+
+      $args[] = $wpdb->prepare("
+          (SELECT COUNT(*)
+             FROM {$wpdb->usermeta} AS um_cap
+            WHERE um_cap.user_id=u.ID
+              AND um_cap.meta_key=%s) > 0
+        ",
+        $wpdb->get_blog_prefix() . 'user_level'
+      );
+    }
+
+    if(isset($params['month']) && is_numeric($params['month'])) {
+      $args[] = $wpdb->prepare("MONTH(u.user_registered) = %s",$params['month']);
+    }
+
+    if(isset($params['day']) && is_numeric($params['day'])) {
+      $args[] = $wpdb->prepare("DAY(u.user_registered) = %s",$params['day']);
+    }
+
+    if(isset($params['year']) && is_numeric($params['year'])) {
+      $args[] = $wpdb->prepare("YEAR(u.user_registered) = %s",$params['year']);
+    }
+
+    if(isset($params['status']) && $params['status'] != 'all') {
+      if($params['status']=='active') {
+        $args[] = '(m.active_txn_count > 0 OR m.trial_txn_count > 0)';
+      }
+      else if($params['status']=='expired') {
+        $args[] = 'm.active_txn_count <= 0';
+        $args[] = 'm.expired_txn_count > 0';
+        $args[] = 'm.trial_txn_count <= 0';
+      }
+      else if($params['status']=='none') {
+        $args[] = 'm.active_txn_count <= 0';
+        $args[] = 'm.expired_txn_count <= 0';
+        $args[] = 'm.trial_txn_count <= 0';
+      }
+    }
+
+    if(isset($params['membership']) && !empty($params['membership']) && is_numeric($params['membership'])) {
+      // $args[] = $wpdb->prepare("%s IN (m.memberships)",$params['membership']);
+      $args[] = $wpdb->prepare("m.memberships RLIKE '(^|,)%d(,|$)'", $params['membership']);
+    }
+
+    if(isset($params['prd_id']) && !empty($params['prd_id']) && is_numeric($params['prd_id'])) {
+      // $args[] = $wpdb->prepare("%s IN (m.memberships)",$params['prd_id']);
+      $args[] = $wpdb->prepare("m.memberships RLIKE '(^|,)%d(,|$)'", $params['prd_id']);
+    }
+
+    $joins = array(
+      "LEFT JOIN {$wpdb->usermeta} AS pm_first_name ON pm_first_name.user_id = u.ID AND pm_first_name.meta_key='first_name'",
+      "LEFT JOIN {$wpdb->usermeta} AS pm_last_name ON pm_last_name.user_id = u.ID AND pm_last_name.meta_key='last_name'",
+      "/* IMPORTANT */ JOIN {$mepr_db->members} AS m ON m.user_id=u.ID",
+      "LEFT JOIN {$mepr_db->transactions} AS first_txn ON m.first_txn_id=first_txn.id",
+      "LEFT JOIN {$mepr_db->transactions} AS latest_txn ON m.latest_txn_id=latest_txn.id",
+      "LEFT JOIN {$mepr_db->events} AS last_login ON m.last_login_id=last_login.id",
+    );
+
+    // Include custom fields in results?
+    if($include_fields) {
+      $custom_fields = array_merge($mepr_options->address_fields, $mepr_options->custom_fields);
+      foreach($custom_fields as $i => $field) {
+        $col = "pm_col_{$i}";
+        $cols[$field->field_key] = $wpdb->prepare("
+            IFNULL(
+              (
+                SELECT GROUP_CONCAT({$col}.meta_value)
+                  FROM {$wpdb->usermeta} AS {$col}
+                 WHERE {$col}.meta_key=%s
+                   AND {$col}.user_id=u.ID
+                 GROUP BY {$col}.user_id
+              ),
+              ''
+            )
+          ",
+          $field->field_key
+        );
+      }
+    }
+
+    return MeprDb::list_table($cols, "{$wpdb->users} AS u", $joins, $args, $order_by, $order, $paged, $search, $search_field, $perpage); //, false, true);
+  }
+
+  /***** MAGIC METHOD HANDLERS *****/
+  protected function mgm_first_txn($mgm, $val = '') {
+    global $wpdb;
+    $mepr_db = MeprDb::fetch();
+    $where = '';
+
+    switch($mgm) {
+      case 'get':
+        $q = $wpdb->prepare("
+            SELECT t.id
+              FROM {$mepr_db->transactions} AS t
+             WHERE t.user_id = %d
+               AND t.status IN (%s, %s)
+             ORDER BY t.created_at ASC
+             LIMIT 1
+          ",
+          $this->rec->ID,
+          MeprTransaction::$complete_str,
+          MeprTransaction::$confirmed_str
+        );
+
+        $id = $wpdb->get_var($q);
+        return empty($id) ? false : new MeprTransaction($id);
+      default:
+        return false;
+    }
+  }
+
+  protected function mgm_latest_txn($mgm, $val = '') {
+    global $wpdb;
+    $mepr_db = MeprDb::fetch();
+
+    switch($mgm) {
+      case 'get':
+        $q = $wpdb->prepare("
+            SELECT t.id
+              FROM {$mepr_db->transactions} AS t
+             WHERE t.user_id = %d
+               AND t.status IN (%s, %s)
+             ORDER BY t.created_at DESC
+             LIMIT 1
+          ",
+          $this->rec->ID,
+          MeprTransaction::$complete_str,
+          MeprTransaction::$confirmed_str
+        );
+
+        $id = $wpdb->get_var($q);
+        return empty($id) ? false : new MeprTransaction($id);
+      default:
+        return false;
+    }
+  }
+
+  protected function mgm_txn_count($mgm, $val = '') {
+    global $wpdb;
+
+    $mepr_db = MeprDb::fetch();
+
+    switch($mgm) {
+      case 'get':
+        $q = $wpdb->prepare("
+            SELECT COUNT(*)
+              FROM {$mepr_db->transactions} AS t
+             WHERE t.user_id=%d
+               AND t.status IN (%s,%s)
+          ",
+          $this->rec->ID,
+          MeprTransaction::$complete_str,
+          MeprTransaction::$confirmed_str
+        );
+
+        return $wpdb->get_var($q);
+      default:
+        return false;
+    }
+  }
+
+  protected function mgm_active_txn_count($mgm, $val = '') {
+    global $wpdb;
+
+    $mepr_db = MeprDb::fetch();
+
+    switch($mgm) {
+      case 'get':
+        $q = $wpdb->prepare("
+            SELECT COUNT(*)
+              FROM {$mepr_db->transactions} AS t
+             WHERE t.user_id=%d
+               AND t.status IN (%s,%s)
+               AND (
+                 t.expires_at IS NULL
+                 OR t.expires_at = %s
+                 OR t.expires_at > %s
+               )
+          ",
+          $this->rec->ID,
+          MeprTransaction::$complete_str,
+          MeprTransaction::$confirmed_str,
+          MeprUtils::db_lifetime(),
+          MeprUtils::db_now()
+        );
+
+        return $wpdb->get_var($q);
+      default:
+        return false;
+    }
+  }
+
+  protected function mgm_expired_txn_count($mgm, $val = '') {
+    global $wpdb;
+
+    $mepr_db = MeprDb::fetch();
+
+    switch($mgm) {
+      case 'get':
+        $q = $wpdb->prepare("
+            SELECT COUNT(*)
+              FROM {$mepr_db->transactions} AS t
+             WHERE t.user_id = %d
+               AND t.status IN (%s,%s)
+               AND ( (
+                   t.expires_at IS NOT NULL
+                   AND t.expires_at <> %s
+                   AND t.expires_at < %s
+                 )
+               )
+          ",
+          $this->rec->ID,
+          MeprTransaction::$complete_str,
+          MeprTransaction::$confirmed_str,
+          MeprUtils::db_lifetime(),
+          MeprUtils::db_now()
+        );
+
+        return $wpdb->get_var($q);
+      default:
+        return false;
+    }
+  }
+
+  protected function mgm_total_spent($mgm, $val = '') {
+    global $wpdb;
+
+    $mepr_db = MeprDb::fetch();
+
+    switch($mgm) {
+      case 'get':
+        $q = $wpdb->prepare("
+            SELECT sum(t.total)
+              FROM {$mepr_db->transactions} AS t
+             WHERE t.user_id = %d
+               AND t.status IN (%s,%s)
+          ",
+          $this->rec->ID,
+          MeprTransaction::$complete_str,
+          MeprTransaction::$confirmed_str
+        );
+
+        return MeprUtils::format_float($wpdb->get_var($q));
+      default:
+        return false;
+    }
+  }
+
+  protected function mgm_confirmations($mgm, $val = '') {
+    global $wpdb;
+
+    $mepr_db = MeprDb::fetch();
+
+    switch($mgm) {
+      case 'get':
+        $q = $wpdb->prepare("
+            SELECT t.id
+              FROM {$mepr_db->transactions} AS t
+             WHERE t.user_id = %d
+               AND t.status = %s
+          ",
+          $this->rec->ID,
+          MeprTransaction::$confirmed_str
+        );
+
+        $ids = $wpdb->get_col($q);
+
+        if(empty($ids)) {
+          return false;
+        }
+
+        $txns = array();
+        foreach($ids as $id) {
+          $txns[] = new MeprTransaction($id);
+        }
+
+        return $txns;
+      default:
+        return false;
+    }
+  }
+
+  protected function mgm_payments($mgm, $val = '') {
+    global $wpdb;
+
+    $mepr_db = MeprDb::fetch();
+
+    switch($mgm) {
+      case 'get':
+        $q = $wpdb->prepare("
+            SELECT t.id
+              FROM {$mepr_db->transactions} AS t
+             WHERE t.user_id = %d
+               AND t.status = %s
+               AND t.amount > 0
+          ",
+          $this->rec->ID,
+          MeprTransaction::$complete_str
+        );
+
+        $ids = $wpdb->get_col($q);
+
+        if(empty($ids)) {
+          return false;
+        }
+
+        $txns = array();
+        foreach($ids as $id) {
+          $txns[] = new MeprTransaction($id);
+        }
+
+        return $txns;
+      default:
+        return false;
+    }
+  }
+
+  protected function mgm_transactions($mgm, $val = '') {
+    global $wpdb;
+
+    $mepr_db = MeprDb::fetch();
+
+    switch($mgm) {
+      case 'get':
+        $q = $wpdb->prepare("
+            SELECT t.id
+              FROM {$mepr_db->transactions} AS t
+             WHERE t.user_id = %d
+          ",
+          $this->rec->ID
+        );
+
+        $ids = $wpdb->get_col($q);
+
+        if(empty($ids)) {
+          return false;
+        }
+
+        $txns = array();
+        foreach($ids as $id) {
+          $txns[] = new MeprTransaction($id);
+        }
+
+        return $txns;
+      default:
+        return false;
+    }
+  }
+
+  protected function mgm_refunds($mgm, $val = '') {
+    global $wpdb;
+
+    $mepr_db = MeprDb::fetch();
+
+    switch($mgm) {
+      case 'get':
+        $q = $wpdb->prepare("
+            SELECT t.id
+              FROM {$mepr_db->transactions} AS t
+             WHERE t.user_id = %d
+               AND t.status = %s
+          ",
+          $this->rec->ID,
+          MeprTransaction::$refunded_str
+        );
+
+        $ids = $wpdb->get_col($q);
+
+        if(empty($ids)) {
+          return false;
+        }
+
+        $txns = array();
+        foreach($ids as $id) {
+          $txns[] = new MeprTransaction($id);
+        }
+
+        return $txns;
+      default:
+        return false;
+    }
+  }
+
+  protected function mgm_pending_payments($mgm, $val = '') {
+    global $wpdb;
+
+    $mepr_db = MeprDb::fetch();
+
+    switch($mgm) {
+      case 'get':
+        $q = $wpdb->prepare("
+            SELECT t.id
+              FROM {$mepr_db->transactions} AS t
+             WHERE t.user_id = %d
+               AND t.status = %s
+          ",
+          $this->rec->ID,
+          MeprTransaction::$pending_str
+        );
+
+        $ids = $wpdb->get_col($q);
+
+        if(empty($ids)) {
+          return false;
+        }
+
+        $txns = array();
+        foreach($ids as $id) {
+          $txns[] = new MeprTransaction($id);
+        }
+
+        return $txns;
+      default:
+        return false;
+    }
+  }
+
+  protected function mgm_failed_payments($mgm, $val = '') {
+    global $wpdb;
+
+    $mepr_db = MeprDb::fetch();
+
+    switch($mgm) {
+      case 'get':
+        $q = $wpdb->prepare("
+            SELECT t.id
+              FROM {$mepr_db->transactions} AS t
+             WHERE t.user_id = %d
+               AND t.status = %s
+          ",
+          $this->rec->ID,
+          MeprTransaction::$failed_str
+        );
+
+        $ids = $wpdb->get_col($q);
+
+        if(empty($ids)) {
+          return false;
+        }
+
+        $txns = array();
+        foreach($ids as $id) {
+          $txns[] = new MeprTransaction($id);
+        }
+
+        return $txns;
+      default:
+        return false;
+    }
+  }
+
+  protected function mgm_memberships($mgm, $val = '') {
+    global $wpdb;
+
+    $mepr_db = MeprDb::fetch();
+
+    switch($mgm) {
+      case 'get':
+        $q = $wpdb->prepare("
+            SELECT DISTINCT t.product_id
+              FROM {$mepr_db->transactions} AS t
+             WHERE t.user_id = %d
+               AND (
+                 t.expires_at IS NULL
+                 OR t.expires_at = %s
+                 OR t.expires_at > %s
+               )
+               AND ( (
+                   t.txn_type IN (%s,%s,%s)
+                   AND t.status=%s
+                 ) OR (
+                   t.txn_type=%s
+                   AND t.status=%s
+                 )
+               )
+          ",
+          $this->rec->ID,
+          MeprUtils::db_lifetime(),
+          MeprUtils::db_now(),
+          MeprTransaction::$payment_str,
+          MeprTransaction::$sub_account_str,
+          MeprTransaction::$fallback_str,
+          MeprTransaction::$complete_str,
+          MeprTransaction::$subscription_confirmation_str,
+          MeprTransaction::$confirmed_str
+        );
+
+        $ids = $wpdb->get_col($q);
+
+        if(empty($ids)) {
+          return false;
+        }
+
+        $memberships = array();
+        foreach($ids as $id) {
+          $memberships[] = new MeprProduct($id);
+        }
+
+        return $memberships;
+      default:
+        return false;
+    }
+  }
+
+  protected function mgm_logins($mgm, $val = '') {
+    global $wpdb;
+
+    $mepr_db = MeprDb::fetch();
+
+    switch($mgm) {
+      case 'get':
+        $q = $wpdb->prepare("
+            SELECT e.id
+              FROM {$mepr_db->events} AS e
+             WHERE e.evt_id=%d
+               AND e.evt_id_type=%s
+               AND e.event=%s
+          ",
+          $this->rec->ID,
+          MeprEvent::$users_str,
+          MeprEvent::$login_event_str
+        );
+
+        $ids = $wpdb->get_col($q);
+
+        if(empty($ids)) {
+          return false;
+        }
+
+        $logins = array();
+        foreach($ids as $id) {
+          $logins[] = new MeprEvent($id);
+        }
+
+        return $logins;
+      default:
+        return false;
+    }
+  }
+
+  protected function mgm_last_login($mgm, $val = '') {
+    global $wpdb;
+
+    $mepr_db = MeprDb::fetch();
+
+    switch($mgm) {
+      case 'get':
+        $q = $wpdb->prepare("
+            SELECT e.id
+              FROM {$mepr_db->events} AS e
+             WHERE e.evt_id=%d
+               AND e.evt_id_type=%s
+               AND e.event=%s
+             ORDER BY e.created_at DESC
+             LIMIT 1
+          ",
+          $this->rec->ID,
+          MeprEvent::$users_str,
+          MeprEvent::$login_event_str
+        );
+
+        $eid = $wpdb->get_var($q);
+        return !empty($eid) ? new MeprEvent($eid) : false;
+      default:
+        return false;
+    }
+  }
+
+  protected function mgm_login_count($mgm, $val = '') {
+    global $wpdb;
+
+    $mepr_db = MeprDb::fetch();
+
+    switch($mgm) {
+      case 'get':
+        $q = $wpdb->prepare("
+            SELECT COUNT(*)
+              FROM {$mepr_db->events} AS e
+             WHERE e.evt_id=%d
+               AND e.evt_id_type=%s
+               AND e.event=%s
+          ",
+          $this->rec->ID,
+          MeprEvent::$users_str,
+          MeprEvent::$login_event_str
+        );
+
+        return $wpdb->get_var($q);
+      default:
+        return false;
+    }
+  }
+
+  // MEMBER DATA METHODS
+
+  /*
+
+  Member Data is statically stored, dynamic data which is acquired by utilizing the member_data static
+  method. This will run some moderately expensive queries which will be cached in the members table
+  so that the expensive queries can be run once, at the point when individual members are updated.
+  Utilizing this approach reduces the strain on the server and increases performance because these
+  queries are only run once when a user is updated and are usually only run for one member at a time.
+
+  */
+  public static function member_data($u=null,Array $cols=array()) {
+    global $wpdb;
+    $mepr_db = MeprDb::fetch();
+
+    $select_cols = array();
+
+    // empty cols indicates we're getting all columns
+    if(empty($cols) || in_array('first_txn_id',$cols))        { $select_cols['first_txn_id']        = self::member_col_first_txn_id(); }
+    if(empty($cols) || in_array('latest_txn_id',$cols))       { $select_cols['latest_txn_id']       = self::member_col_latest_txn_id(); }
+    if(empty($cols) || in_array('txn_count',$cols))           { $select_cols['txn_count']           = self::member_col_txn_count(); }
+    if(empty($cols) || in_array('expired_txn_count',$cols))   { $select_cols['expired_txn_count']   = self::member_col_expired_txn_count(); }
+    if(empty($cols) || in_array('active_txn_count',$cols))    { $select_cols['active_txn_count']    = self::member_col_active_txn_count(); }
+    if(empty($cols) || in_array('trial_txn_count',$cols))     { $select_cols['trial_txn_count']     = self::member_col_trial_txn_count(); }
+    if(empty($cols) || in_array('sub_count',$cols))           { $select_cols['sub_count']           = self::member_col_sub_count(); }
+    if(empty($cols) || in_array('pending_sub_count',$cols))   { $select_cols['pending_sub_count']   = self::member_col_sub_count(MeprSubscription::$pending_str); }
+    if(empty($cols) || in_array('active_sub_count',$cols))    { $select_cols['active_sub_count']    = self::member_col_sub_count(MeprSubscription::$active_str); }
+    if(empty($cols) || in_array('suspended_sub_count',$cols)) { $select_cols['suspended_sub_count'] = self::member_col_sub_count(MeprSubscription::$suspended_str); }
+    if(empty($cols) || in_array('cancelled_sub_count',$cols)) { $select_cols['cancelled_sub_count'] = self::member_col_sub_count(MeprSubscription::$cancelled_str); }
+    if(empty($cols) || in_array('memberships',$cols))         { $select_cols['memberships']         = self::member_col_memberships(); }
+    if(empty($cols) || in_array('last_login_id',$cols))       { $select_cols['last_login_id']       = self::member_col_last_login_id(); }
+    if(empty($cols) || in_array('login_count',$cols))         { $select_cols['login_count']         = self::member_col_login_count(); }
+    if(empty($cols) || in_array('total_spent',$cols))         { $select_cols['total_spent']         = self::member_col_total_spent(); }
+
+    $selects = '';
+    foreach($select_cols as $col_name => $col_query) {
+      $selects .= "\n{$col_query} AS {$col_name},";
+    }
+    //$selects = rtrim($selects, ',');
+
+    $where = self::get_member_where($u);
+
+    $q = $wpdb->prepare("
+        SELECT
+          u.ID AS user_id,
+          {$selects}
+          %s AS updated_at
+        FROM {$wpdb->users} AS u
+        {$where}
+      ",
+      MeprUtils::db_now()
+    );
+
+    if(!is_null($u)) {
+      $q .= "
+        LIMIT 1
+      ";
+
+      return $wpdb->get_row($q);
+    }
+
+    return $wpdb->get_results($q);
+  }
+
+/*** SQL FOR MEMBER COLUMNS ***/
+
+  private static function member_col_first_txn_id() {
+    global $wpdb;
+    $mepr_db = MeprDb::fetch();
+
+    return $wpdb->prepare("(
+        SELECT t.id
+          FROM {$mepr_db->transactions} AS t
+         WHERE t.user_id = u.ID
+           AND t.status = %s
+         ORDER BY t.created_at ASC
+         LIMIT 1
+      )",
+      MeprTransaction::$complete_str
+    );
+  }
+
+  private static function member_col_latest_txn_id() {
+    global $wpdb;
+    $mepr_db = MeprDb::fetch();
+
+    return $wpdb->prepare("(
+        SELECT t.id
+          FROM {$mepr_db->transactions} AS t
+         WHERE t.user_id = u.ID
+           AND t.status = %s
+         ORDER BY t.created_at DESC
+         LIMIT 1
+      )",
+      MeprTransaction::$complete_str
+    );
+  }
+
+  private static function member_col_txn_count() {
+    global $wpdb;
+    $mepr_db = MeprDb::fetch();
+
+    return $wpdb->prepare("(
+        SELECT COUNT(*)
+          FROM {$mepr_db->transactions} AS t
+         WHERE t.user_id=u.ID
+           AND t.txn_type IN (%s, %s)
+      )",
+      MeprTransaction::$payment_str,
+      MeprTransaction::$sub_account_str
+    );
+  }
+
+  private static function member_col_expired_txn_count() {
+    global $wpdb;
+    $mepr_db = MeprDb::fetch();
+
+    return $wpdb->prepare("(
+        SELECT COUNT(*)
+          FROM {$mepr_db->transactions} AS t
+         WHERE t.user_id = u.ID
+           AND t.status = %s
+           AND t.txn_type IN (%s, %s)
+           AND ( (
+               t.expires_at IS NOT NULL
+               AND t.expires_at <> %s
+               AND t.expires_at < %s
+             )
+           )
+      )",
+      MeprTransaction::$complete_str,
+      MeprTransaction::$payment_str,
+      MeprTransaction::$sub_account_str,
+      MeprUtils::db_lifetime(),
+      MeprUtils::db_now()
+    );
+  }
+
+  private static function member_col_active_txn_count() {
+    global $wpdb;
+    $mepr_db = MeprDb::fetch();
+
+    return $wpdb->prepare("(
+        SELECT COUNT(*)
+          FROM {$mepr_db->transactions} AS t
+         WHERE t.user_id=u.ID
+           AND t.status = %s
+           AND t.txn_type IN (%s, %s)
+           AND (
+             t.expires_at IS NULL
+             OR t.expires_at = %s
+             OR t.expires_at > %s
+           )
+      )",
+      MeprTransaction::$complete_str,
+      MeprTransaction::$payment_str,
+      MeprTransaction::$sub_account_str,
+      MeprUtils::db_lifetime(),
+      MeprUtils::db_now()
+    );
+  }
+
+  private static function member_col_trial_txn_count() {
+    global $wpdb;
+
+    $mepr_db = MeprDb::fetch();
+
+    return $wpdb->prepare("(
+        SELECT COUNT(*)
+          FROM {$mepr_db->transactions} AS t
+          JOIN {$mepr_db->subscriptions} AS sub
+            ON t.subscription_id = sub.id
+         WHERE t.user_id=u.ID
+           AND t.txn_type = %s
+           AND (
+             t.expires_at IS NULL
+             OR t.expires_at = %s
+             OR t.expires_at > %s
+           )
+           AND sub.trial IS TRUE
+           AND sub.trial_amount = 0.00
+      )",
+      MeprTransaction::$subscription_confirmation_str,
+      MeprUtils::db_lifetime(),
+      MeprUtils::db_now()
+    );
+  }
+
+  private static function member_col_sub_count($status=null) {
+    global $wpdb;
+    $mepr_db = MeprDb::fetch();
+
+    $where_status = (empty($status) ? '' : $wpdb->prepare('AND s.status=%s', $status));
+
+    return "(
+      SELECT COUNT(*)
+        FROM {$mepr_db->subscriptions} AS s
+       WHERE s.user_id=u.ID
+       {$where_status}
+    )";
+  }
+
+  private static function member_col_memberships() {
+    global $wpdb;
+    $mepr_db = MeprDb::fetch();
+
+    return $wpdb->prepare("(
+        SELECT GROUP_CONCAT(
+                 DISTINCT t.product_id
+                 ORDER BY t.product_id
+                 SEPARATOR ','
+               )
+          FROM {$mepr_db->transactions} AS t
+         WHERE t.user_id = u.ID
+           AND (
+             t.expires_at > %s
+             OR t.expires_at = %s
+             OR t.expires_at IS NULL
+           )
+           AND ( (
+                t.txn_type IN (%s,%s,%s)
+                AND t.status=%s
+             ) OR (
+                t.txn_type=%s
+                AND t.status=%s
+             )
+           )
+      )",
+      MeprUtils::db_now(),
+      MeprUtils::db_lifetime(),
+      MeprTransaction::$payment_str,
+      MeprTransaction::$sub_account_str,
+      MeprTransaction::$fallback_str,
+      MeprTransaction::$complete_str,
+      MeprTransaction::$subscription_confirmation_str,
+      MeprTransaction::$confirmed_str
+    );
+  }
+
+  private static function member_col_last_login_id() {
+    global $wpdb;
+    $mepr_db = MeprDb::fetch();
+
+    return $wpdb->prepare("(
+        SELECT e.id
+          FROM {$mepr_db->events} AS e
+         WHERE e.evt_id=u.ID
+           AND e.evt_id_type=%s
+           AND e.event=%s
+         ORDER BY e.created_at DESC
+         LIMIT 1
+      )",
+      MeprEvent::$users_str,
+      MeprEvent::$login_event_str
+    );
+  }
+
+  private static function member_col_login_count() {
+    global $wpdb;
+    $mepr_db = MeprDb::fetch();
+
+    return $wpdb->prepare("(
+        SELECT COUNT(*)
+          FROM {$mepr_db->events} AS e
+         WHERE e.evt_id=u.ID
+           AND e.evt_id_type=%s
+           AND e.event=%s
+      )",
+      MeprEvent::$users_str,
+      MeprEvent::$login_event_str
+    );
+  }
+
+  private static function member_col_total_spent() {
+    global $wpdb;
+    $mepr_db = MeprDb::fetch();
+
+    return $wpdb->prepare("(
+        SELECT sum(t.total)
+          FROM {$mepr_db->transactions} AS t
+         WHERE t.user_id=u.ID
+           AND t.status IN (%s,%s)
+      )",
+      MeprTransaction::$complete_str,
+      MeprTransaction::$confirmed_str
+    );
+  }
+
+  public function update_member_data($cols=array()) {
+    global $wpdb;
+    $mepr_db = MeprDb::fetch();
+
+    // Does the table even exist? (fix for Multisite)
+    if(!$mepr_db->table_exists($mepr_db->members)) { return; }
+
+    if(!isset($this->ID) || empty($this->ID)) {
+      MeprUtils::debug_log("UPDATE_MEMBER_DATA: \$this->ID is either unset or empty or zero");
+      return false;
+    }
+
+    $data = self::member_data($this->ID,$cols);
+
+    MeprUtils::debug_log("Member Data for {$this->ID}");
+    MeprUtils::debug_log("MEMBER DATA: ".MeprUtils::object_to_string($data));
+
+    if(!empty($data) && is_object($data) && isset($data->user_id)) {
+      $user_id = array('user_id' => $data->user_id);
+      $member = $mepr_db->get_one_record($mepr_db->members, $user_id);
+
+      if(empty($member)) {
+        MeprUtils::debug_log("EMPTY MEMBER?!");
+        return $mepr_db->create_record($mepr_db->members, $data);
+      }
+      else {
+        MeprUtils::debug_log("MEMBER RECORD: ".MeprUtils::object_to_string($member));
+        return $mepr_db->update_record($mepr_db->members, $member->id, $data);
+      }
+    }
+    else {
+      MeprUtils::debug_log("PROBLEM WITH MEMBER DATA?!");
+    }
+
+    return false;
+  }
+
+  // Update all member data that has already been updated or not yet
+  public static function update_all_member_data($exclude_already_updated=false, $limit='', $cols=array()) {
+    global $wpdb;
+    $mepr_db = MeprDb::fetch();
+
+    $where = '';
+    if(is_multisite()) {
+      //$blog_id = get_current_blog_id();
+      //$blog_user_ids = get_users(array('blog_id'=>$blog_id,'fields'=>'ID'));
+      //$where = 'WHERE ID IN (' . implode(',',$blog_user_ids) . ')';
+
+      $where = $wpdb->prepare("
+        WHERE (SELECT COUNT(*)
+                 FROM {$wpdb->usermeta} AS um_cap
+                WHERE um_cap.user_id=ID
+                  AND um_cap.meta_key=%s) > 0
+        ",
+        $wpdb->get_blog_prefix() . 'user_level'
+      );
+    }
+
+    if($exclude_already_updated) {
+      if(empty($where)) {
+        $where = 'WHERE';
+      }
+      else {
+        $where = "{$where} AND ";
+      }
+
+      $where = "{$where} ID NOT IN (SELECT user_id FROM {$mepr_db->members})";
+    }
+    // No longer a need to do this
+    //else {
+    //  self::delete_all_member_data();
+    //}
+
+    if(!empty($limit)) {
+      $limit = "LIMIT {$limit}";
+    }
+
+    $q = "SELECT ID FROM {$wpdb->users} {$where} {$limit}";
+
+    $uids = $wpdb->get_col($q);
+
+    foreach($uids as $uid) {
+      $u = new MeprUser();
+
+      // We just set the ID here to avoid looking up the ID and
+      // it's the only thing we care about in updat_member_data
+      $u->ID = $uid;
+      $u->update_member_data($cols);
+    }
+  }
+
+  // Update all member data that was updated at least 1 day ago
+  public static function update_existing_member_data($limit) {
+    global $wpdb;
+    $mepr_db = MeprDb::fetch();
+
+    $interval = '2 DAY';
+
+    $ms_where = '';
+    if(is_multisite()) {
+      //$blog_id = get_current_blog_id();
+      //$blog_user_ids = get_users(array('blog_id'=>$blog_id,'fields'=>'ID'));
+      //$ms_where = 'm.user_id IN (' . implode(',',$blog_user_ids) . ') AND';
+
+      $ms_where = $wpdb->prepare("
+          (SELECT COUNT(*)
+             FROM {$wpdb->usermeta} AS um_cap
+            WHERE um_cap.user_id=m.user_id
+              AND um_cap.meta_key=%s) > 0
+        ",
+        $wpdb->get_blog_prefix() . 'user_level'
+      );
+    }
+
+    $q = $wpdb->prepare("
+        SELECT m.user_id
+          FROM {$mepr_db->members} AS m
+         WHERE {$ms_where} (
+                 m.updated_at IS NULL
+                 OR m.updated_at = %s
+                 OR m.updated_at <= DATE_SUB(%s,INTERVAL {$interval})
+               )
+         ORDER BY m.updated_at
+         LIMIT %d
+      ",
+      MeprUtils::db_lifetime(),
+      MeprUtils::db_now(),
+      $limit
+    );
+
+    $uids = $wpdb->get_col($q);
+
+    foreach($uids as $uid) {
+      $u = new MeprUser();
+      $u->ID = $uid;
+      $u->update_member_data();
+    }
+  }
+
+  public function delete_member_data() {
+    global $wpdb;
+    $mepr_db = MeprDb::fetch();
+    $q = $wpdb->prepare("DELETE FROM {$mepr_db->members} WHERE user_id=%s", $this->ID);
+    return $wpdb->query($q);
+  }
+
+  public static function delete_all_member_data() {
+    global $wpdb;
+    $mepr_db = MeprDb::fetch();
+    $q = "DELETE FROM {$mepr_db->members}";
+    return $wpdb->query($q);
+  }
+
+  private static function get_member_where($u=null, $id_col='u.ID') {
+    global $wpdb;
+
+    $where = '';
+
+    if(!is_null($u)) {
+      if(is_array($u)) {
+        $uids = implode(',',$u);
+        $where = "
+          WHERE {$id_col} IN ({$uids})
+        ";
+      }
+      else {
+        $where = $wpdb->prepare("
+            WHERE {$id_col} = %d
+          ",
+          $u
+        );
+      }
+    }
+
+    return $where;
+  }
+} //End class

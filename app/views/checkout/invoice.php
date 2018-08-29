@@ -1,5 +1,5 @@
 <?php if(!defined('ABSPATH')) {die('You are not allowed to call this page directly.');} ?>
-<div class="mp_wrapper">
+<div class="mp_wrapper mp_invoice">
   <?php if( isset( $sub_price_str ) ): ?>
   <div class="mp_price_str">
     <strong><?php _ex('Terms:', 'ui', 'memberpress'); ?></strong> <?php echo $sub_price_str; ?>
@@ -49,7 +49,7 @@
           <?php if( $show_quantity ): ?>
             <th>&nbsp;</th>
           <?php endif; ?>
-          <th><?php echo MeprUtils::format_float($invoice['tax']['percent']) . '% ' . $invoice['tax']['type']; ?></th>
+          <th><?php echo MeprUtils::format_tax_percent_for_display($invoice['tax']['percent']) . '% ' . $invoice['tax']['type']; ?></th>
           <th class="mp-currency-cell"><?php echo MeprAppHelper::format_currency( $invoice['tax']['amount'], true, false ); ?></th>
         </tr>
       <?php endif; ?>

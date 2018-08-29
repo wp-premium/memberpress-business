@@ -10,27 +10,21 @@ class MeprEvent extends MeprBaseModel {
   // User events
   public static $login_event_str = 'login';
 
-  public function __construct($id = null) {
-    if(!is_null($id)) {
-      $this->rec = (object)self::get_one($id);
-    }
-    else {
-      $this->rec = (object)array(
-        'id' => 0,
-        'ip' => null,
-        'args' => null,
-        'event'  => 'login',
-        'evt_id' => 0,
+  public function __construct($obj = null) {
+    $this->initialize(
+      array(
+        'id'          => 0,
+        'args'        => null,
+        'event'       => 'login',
+        'evt_id'      => 0,
         'evt_id_type' => 'users',
         'created_at'  => null
-      );
-    }
+      ),
+      $obj
+    );
   }
 
   public function validate() {
-    if(!empty($this->ip)) {
-      $this->validate_is_ip_addr($this->ip, 'ip');
-    }
     $this->validate_is_numeric($this->evt_id, 0, null, 'evt_id');
   }
 
@@ -80,12 +74,11 @@ class MeprEvent extends MeprBaseModel {
     $vals = (array)$this->rec;
     unset($vals['created_at']); // let mepr_db handle this
 
-    if(isset($this->id) and !is_null($this->id) and (int)$this->id > 0) {
+    if(isset($this->id) and (int)$this->id > 0) {
       $mepr_db->update_record( $mepr_db->events, $this->id, $vals );
       MeprHooks::do_action('mepr-event-update', $this);
     }
     else {
-      $vals['ip'] = ( empty($vals['ip']) ? $_SERVER['REMOTE_ADDR'] : $vals['ip'] );
       $this->id = $mepr_db->create_record( $mepr_db->events, $vals );
       MeprHooks::do_action('mepr-event-create', $this);
       MeprHooks::do_action('mepr-event',$this);
@@ -99,13 +92,15 @@ class MeprEvent extends MeprBaseModel {
     return $this->id;
   }
 
-  public function destroy()
-  {
+  public function destroy() {
     $mepr_db = new MeprDb();
+
     $id = $this->id;
     $args = compact('id');
-    $event = self::get_one($id);
-    return MeprHooks::apply_filters('mepr-event-destroy', $mepr_db->delete_records($mepr_db->events, $args), $args);
+
+    MeprHooks::do_action('mepr_event_destroy', $this);
+
+    return MeprHooks::apply_filters('mepr_delete_event', $mepr_db->delete_records($mepr_db->events, $args), $args);
   }
 
   // TODO: This is a biggie ... we don't want to send the event object like this
@@ -129,9 +124,16 @@ class MeprEvent extends MeprBaseModel {
     return $obj;
   }
 
-  public static function record($event, MeprBaseModel $obj, $args='') {
-    $e = new MeprEvent();
+  public function get_args() {
+    return json_decode($this->args);
+  }
 
+  public static function record($event, MeprBaseModel $obj, $args='') {
+    //Nothing to record? Hopefully this stops some ghost duplicate reminders we are seeing
+    //Gotta use ->rec here to avoid weird shiz from happening hopefully
+    if((!isset($obj->rec->id) || !$obj->rec->id) && (!isset($obj->rec->ID) || !$obj->rec->ID)) { return; }
+
+    $e = new MeprEvent();
     $e->event = $event;
     $e->args = $args;
 
@@ -141,15 +143,15 @@ class MeprEvent extends MeprBaseModel {
     }
 
     if($obj instanceof MeprUser) {
-      $e->evt_id = $obj->ID;
+      $e->evt_id = $obj->rec->ID;
       $e->evt_id_type = self::$users_str;
     }
     elseif($obj instanceof MeprTransaction) {
-      $e->evt_id = $obj->id;
+      $e->evt_id = $obj->rec->id;
       $e->evt_id_type = self::$transactions_str;
     }
     elseif($obj instanceof MeprSubscription) {
-      $e->evt_id = $obj->ID;
+      $e->evt_id = $obj->rec->id;
       $e->evt_id_type = self::$subscriptions_str;
     }
     else { return; }
@@ -178,4 +180,3 @@ class MeprEvent extends MeprBaseModel {
   }
 
 } //End class
-

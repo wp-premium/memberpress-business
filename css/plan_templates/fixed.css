@@ -1,0 +1,263 @@
+/* CSS for plans here */
+.mepr-price-menu.fixed {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  text-align: center !important;
+}
+
+.mepr-price-menu.fixed .mepr-price-boxes {
+  padding: 0;
+  margin: 0 auto !important;
+  width: 100%;
+  margin-left: 0;
+}
+
+.mepr-price-menu.fixed .mepr-price-box {
+  vertical-align: top;
+  display: inline-block;
+  padding: 0;
+  margin: 0;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.mepr-price-menu.fixed .mepr-price-box .mepr-most-popular {
+  padding: 5px 0;
+  font-weight: 300;
+  font-size: 90%;
+}
+
+.mepr-price-menu.fixed .mepr-price-box.highlighted {
+  /* background-color: #dedede; */
+  background-color: #efefef;
+}
+
+.mepr-price-menu.fixed .mepr-price-box.highlighted .mepr-most-popular {
+  z-index: 1;
+  width: 100%;
+  color: white;
+  background-color: #3e3e3e;
+  text-transform: uppercase;
+  margin-top: -1px;
+  margin-left: -1px;
+  border-right: 2px solid #3e3e3e;
+  border-bottom: 1px solid #3e3e3e;
+}
+
+.mepr-price-menu.fixed .mepr-price-box .mepr-most-popular {
+  background-color: #ddd;
+  color: transparent;
+}
+
+.mepr-price-menu.fixed .mepr-price-box-head,
+.mepr-price-menu.fixed .mepr-price-box-benefits,
+.mepr-price-menu.fixed .mepr-price-box-foot {
+  margin: 0 25px;
+}
+
+.mepr-price-menu.fixed .mepr-price-box-benefits {
+  padding: 35px 0;
+  text-align: left;
+  font-size: 90%;
+}
+
+.mepr-price-menu.fixed .mepr-price-boxes {
+  display: flex;
+}
+
+/* Right now we're good up to 10 columns */
+.mepr-price-menu.fixed .mepr-price-boxes.mepr-1-col .mepr-price-box {
+  width: 100%;
+  flex: 1;
+}
+
+.mepr-price-menu.fixed .mepr-price-boxes.mepr-2-col .mepr-price-box {
+  width: 47%;
+  flex: 1;
+}
+
+.mepr-price-menu.fixed .mepr-price-boxes.mepr-3-col .mepr-price-box {
+  width: 30%;
+  flex: 1;
+}
+
+.mepr-price-menu.fixed .mepr-price-boxes.mepr-4-col .mepr-price-box {
+  width: 22.5%;
+  flex: 1;
+}
+
+.mepr-price-menu.fixed .mepr-price-boxes.mepr-5-col .mepr-price-box {
+  width: 18%;
+  flex: 1;
+}
+
+.mepr-price-menu.fixed .mepr-price-boxes.mepr-6-col .mepr-price-box {
+  width: 14.5%;
+  flex: 1;
+}
+
+.mepr-price-menu.fixed .mepr-price-boxes.mepr-7-col .mepr-price-box {
+  width: 12%;
+  flex: 1;
+}
+
+.mepr-price-menu.fixed .mepr-price-boxes.mepr-8-col .mepr-price-box {
+  width: 11%;
+  flex: 1;
+}
+
+.mepr-price-menu.fixed .mepr-price-boxes.mepr-9-col .mepr-price-box {
+  width: 9%;
+  flex: 1;
+}
+
+.mepr-price-menu.fixed .mepr-price-boxes.mepr-10-col .mepr-price-box {
+  width: 8%;
+  flex: 1;
+}
+
+.mepr-price-menu.fixed .mepr-price-box-title {
+  font-weight: 300;
+  font-size: 24px;
+  font-family: sans-serif !important;
+  margin: 0;
+  margin-top: 10px;
+  padding-bottom: 10px;
+}
+
+.mepr-price-menu.fixed .mepr-price-box-price {
+  margin: 0;
+  padding-bottom: 30px;
+  font-weight: 300;
+  font-size: 60px;
+  font-family: sans-serif !important;
+}
+
+.mepr-price-menu.fixed .mepr-price-box-heading {
+  margin: 0;
+  margin-bottom: 10px;
+  padding-top: 35px;
+  padding-bottom: 10px;
+  font-family: sans-serif !important;
+}
+
+.mepr-price-menu.fixed .mepr-price-box-price .mepr-custom-price {
+  line-height: 60px !important;
+}
+
+.mepr-price-menu.fixed .mepr-price-box-price .mepr-custom-price .mepr-sign {
+  vertical-align: 22px !important;
+  font-size: 24px !important;
+  line-height: 60px !important;
+}
+
+.mepr-price-menu.fixed .mepr-price-box-price .mepr-custom-price .mepr-price {
+  font-size: 60px !important;
+}
+
+.mepr-price-menu.fixed .mepr-price-box-price .mepr-custom-price .mepr-term {
+  font-size: 18px !important;
+}
+
+.mepr-price-menu.fixed .mepr-price-box-head {
+  padding: 30px 0px 30px 0;
+}
+
+.mepr-price-menu.fixed .mepr-price-box-benefits .mepr-price-box-benefits-list {
+  margin: 0 20px;
+}
+
+.mepr-price-menu.fixed .mepr-price-box-benefits .mepr-price-box-benefits-list .mepr-price-box-benefits-item {
+  margin: 0;
+  padding: 5px 0;
+}
+
+.mepr-price-menu.fixed .mepr-price-box-footer {
+  margin: 10px 15px;
+}
+
+.mepr-price-menu.fixed .mepr-price-box-button {
+  display: block;
+  text-transform: uppercase;
+}
+
+.mepr-price-menu.fixed .mepr-price-box.highlighted .mepr-price-box-button a {
+}
+
+.mepr-price-menu.fixed .mepr-price-box-button a {
+  display: inline-block;
+  margin: 10px 0;
+  padding: 10px 20px;
+  font-weight: 300;
+  font-size: 140%;
+  color: white;
+  background-color: #72cf45;
+  border-radius: 5px;
+}
+
+.mepr-price-menu.fixed .mepr-price-box-button a:hover {
+  text-decoration: none;
+  background-color: #0c6900;
+}
+
+.mepr-price-menu.fixed .mepr-price-box .mepr-price-box-button a.mepr-disabled {
+  cursor: default;
+}
+
+.mepr-price-menu.fixed .mepr-price-box .mepr-price-box-button a.mepr-disabled:hover {
+}
+
+/* Responsive Design */
+/* Effectively just pulls in the gray_vertical.css styles */
+@media all and (max-width: 1200px) {
+  .mepr-price-menu.fixed .mepr-price-box-heading {
+    font-size: 90%;
+  }
+
+  .mepr-price-menu.fixed .mepr-price-box-benefits {
+    font-size: 80%;
+  }
+}
+
+@media all and (max-width: 1023px) {
+  .mepr-price-menu.fixed .mepr-price-box-benefits .mepr-price-box-benefits-list {
+    margin: 0 15px;
+  }
+}
+
+@media all and (max-width: 600px) {
+  .mepr-price-menu.fixed .mepr-price-boxes {
+    display: block;
+  }
+
+  .mepr-price-menu.fixed .mepr-price-boxes .mepr-price-box-heading {
+    font-size: 120%;
+  }
+
+  .mepr-price-menu.fixed .mepr-price-boxes .mepr-price-box-benefits {
+    font-size: 100%;
+  }
+
+  .mepr-price-menu.fixed .mepr-price-boxes .mepr-price-box {
+    display: block;
+    width: 96% !important;
+    margin-right: 2%;
+    margin-left: 2%;
+    margin-bottom: 20px;
+    border-left: 1px solid #ddd;
+  }
+
+  .mepr-price-menu.fixed .mepr-price-boxes .mepr-price-box .mepr-price-box-head {
+    text-align: left;
+  }
+
+  .mepr-price-menu.fixed .mepr-price-box-benefits {
+    font-size: 90%;
+  }
+
+  .mepr-price-menu.fixed .mepr-price-box-benefits .mepr-price-box-benefits-list {
+    margin: 0 10px;
+  }
+}
+

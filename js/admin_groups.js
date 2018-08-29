@@ -4,14 +4,38 @@
     $(function() {
       $('#sortable-products').sortable();
     });
+    function sync_fallback_available_products() {
+      var option;
+      var available_products = $('#sortable-products select[name="_mepr_products[product][]"] :selected');
+      var fallback_select = $('select[name="_mepr_fallback_membership"]');
+      var selected_fallback = $(':selected', fallback_select).first().val();
+
+      //Remove all options except the default
+      $('option:gt(0)', fallback_select).remove();
+      //Add the available product options
+      available_products.each(function() {
+        option = $("<option></option>")
+          .attr("value", this.value)
+          .text(this.text);
+        //Set the selected value
+        if(selected_fallback === this.value) {
+          option.attr('selected', 'selected');
+        }
+        fallback_select.append(option);
+      });
+
+      return false;
+    }
     //Add new membership li
     $('a#add-new-product').click(function() {
       $('ol#sortable-products').append($('div#hidden-line-item').html());
+      sync_fallback_available_products();
       return false;
     });
     //Remove a membership li
     $('body').on('click', 'a.remove-product-item', function() {
       $(this).parent().parent().remove();
+      sync_fallback_available_products();
       return false;
     });
     //Alert if membership already is assigned to another group
@@ -25,6 +49,7 @@
           alert(response); //Alerts the user to the fact that this Membership is already in a group
         }
       });
+      sync_fallback_available_products();
     });
 
     //Change mouse pointer over li items

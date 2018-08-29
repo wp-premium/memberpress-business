@@ -1,0 +1,25 @@
+<wpml-config>
+  <admin-texts>
+    <key name="mepr_options">
+      <key name="custom_message"/>
+      <key name="logout_redirect_url"/>
+      <key name="login_redirect_url"/>
+      <key name="tos_url"/>
+      <key name="tos_title"/>
+      <key name="mail_send_from_name"/>
+      <key name="unauthorized_message"/>
+      <key name="unauthorized_redirect_url"/>
+      <key name="login_page_id"/>
+      <key name="account_page_id"/>
+      <key name="thankyou_page_id"/>
+      <key name="emails">
+        <key name="*">
+        </key>
+      </key>
+      <key name="custom_fields">
+        <key name="*">
+        </key>
+      </key>
+    </key>
+  </admin-texts>
+</wpml-config>

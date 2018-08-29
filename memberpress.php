@@ -3,11 +3,26 @@
 Plugin Name: MemberPress Business Edition
 Plugin URI: http://www.memberpress.com/
 Description: The membership plugin that makes it easy to accept payments for access to your content and digital products.
-Version: 1.2.7
+Version: 1.3.36
 Author: Caseproof, LLC
 Author URI: http://caseproof.com/
 Text Domain: memberpress
-Copyright: 2004-2016, Caseproof, LLC
+Copyright: 2004-2017, Caseproof, LLC
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+Also add information on how to contact you by electronic and paper mail.
 */
 
 if(!defined('ABSPATH')) {die('You are not allowed to call this page directly.');}
@@ -43,9 +58,11 @@ define('MEPR_CSS_URL',MEPR_URL.'/css');
 define('MEPR_JS_URL',MEPR_URL.'/js');
 define('MEPR_GATEWAYS_URL',MEPR_URL.'/app/gateways');
 define('MEPR_VENDOR_LIB_URL',MEPR_URL.'/vendor/lib');
-define('MEPR_SCRIPT_URL',get_option('home').'/index.php?plugin=mepr');
+define('MEPR_SCRIPT_URL',site_url('/index.php?plugin=mepr'));
 define('MEPR_OPTIONS_SLUG', 'mepr_options');
 define('MEPR_EDITION', 'business');
+
+define('MEPR_MIN_PHP_VERSION', 5.3);
 
 /**
  * Returns current plugin version.
@@ -142,9 +159,6 @@ if(is_array(spl_autoload_functions()) and in_array('__autoload', spl_autoload_fu
 // Add the autoloader
 spl_autoload_register('mepr_autoloader');
 
-// Gotta load the language before everything else
-MeprAppCtrl::load_language();
-
 // Load our controllers
 MeprCtrlFactory::all();
 
@@ -165,6 +179,5 @@ function mepr_account_link() {
   }
 }
 
-register_activation_hook( MEPR_PLUGIN_SLUG, create_function( '', 'require_once( MEPR_LIB_PATH . "/activation.php");' ) );
-register_deactivation_hook( MEPR_PLUGIN_SLUG, create_function( '', 'require_once( MEPR_LIB_PATH . "/deactivation.php");' ) );
-//register_uninstall_hook( MEPR_PLUGIN_SLUG, create_function( '', 'require_once( MEPR_PATH . "/uninstall.php");' ) );
+register_activation_hook( MEPR_PLUGIN_SLUG, function() { require_once( MEPR_LIB_PATH . "/activation.php"); });
+register_deactivation_hook( MEPR_PLUGIN_SLUG, function() { require_once( MEPR_LIB_PATH . "/deactivation.php"); });

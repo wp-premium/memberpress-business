@@ -1,0 +1,63 @@
+
+.mepr-advanced-link a {
+  text-decoration: none;
+  color: #555555;
+}
+
+.mepr-advanced-link a:hover {
+  color: #0073AA;
+}
+
+.mepr-member-avatar {
+  float: left;
+  padding-right: 5px;
+}
+
+#col_id {
+  width: 5%;
+}
+
+#col_status {
+  width: 7%;
+}
+
+#col_name {
+  width: 8%;
+}
+
+#col_login_count {
+  width: 7%;
+}
+
+#col_total_spent {
+  width: 8%;
+}
+
+#col_username {
+  width: 15%;
+}
+
+#col_email {
+  width: 15%;
+}
+
+#col_txn_info {
+  width: 12%;
+}
+
+#col_sub_info {
+  width: 12%;
+}
+
+#col_memberships {
+  width: 15%;
+}
+
+#col_last_login_date {
+  width: 12%;
+}
+
+#col_registered {
+  width: 12%;
+}
+

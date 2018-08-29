@@ -1,14 +1,58 @@
 <?php if(!defined('ABSPATH')) {die('You are not allowed to call this page directly.');} ?>
 
 <div id="mepr-groups-form">
-  <input type="checkbox" id="<?php echo MeprGroup::$is_upgrade_path_str; ?>" name="<?php echo MeprGroup::$is_upgrade_path_str; ?>" <?php checked($group->is_upgrade_path); ?> />
-  <label for="<?php echo MeprGroup::$is_upgrade_path_str; ?>"><?php _e('This group is a membership upgrade path', 'memberpress'); ?></label>
-  <?php
-    MeprAppHelper::info_tooltip('mepr-group-page-upgrade-path',
-                                __('Upgrade Path', 'memberpress'),
-                                __('Enabling this will mean that users can only be subscribed to one of these memberships at a time. If un-checked, users may be subscribed to each of these memberships simultaneously.', 'memberpress'));
-  ?>
+  <table class="form-table">
+    <tbody>
+      <tr valign="top">
+        <th scope="row">
+          <label for="<?php echo MeprGroup::$is_upgrade_path_str; ?>"><?php _e('Upgrade Path', 'memberpress'); ?></label>
+          <?php
+            MeprAppHelper::info_tooltip(
+              'mepr-group-page-upgrade-path',
+              __('This group is a membership upgrade path', 'memberpress'),
+              __('Enabling this will mean that users can only be subscribed to one of these memberships at a time. If un-checked, users may be subscribed to each of these memberships simultaneously.', 'memberpress')
+            );
+          ?>
+        </th>
+        <td>
+          <input type="checkbox" id="<?php echo MeprGroup::$is_upgrade_path_str; ?>" name="<?php echo MeprGroup::$is_upgrade_path_str; ?>" class="mepr-toggle-checkbox" data-box="mepr_is_upgrade_path_box" <?php checked($group->is_upgrade_path); ?> />
+        </td>
+      </tr>
+    </tbody>
+  </table>
 
+  <div id="mepr_is_upgrade_path_box" class="mepr-sub-box mepr_is_upgrade_path_box">
+    <div class="mepr-arrow mepr-gray mepr-up mepr-sub-box-arrow"> </div>
+    <table class="form-table">
+      <tbody>
+        <tr valign="top">
+          <th scope="row">
+            <label for="<?php echo MeprGroup::$upgrade_path_reset_period_str; ?>"><?php _e('Reset billing period', 'memberpress'); ?></label>
+            <?php
+              MeprAppHelper::info_tooltip(
+                'mepr-group-upgrade-path-reset-period',
+                __('Reset billing period when upgrading', 'memberpress'),
+                __('If this is checked, the billing period will be reset when a recurring membership is upgraded.', 'memberpress')
+              );
+            ?>
+          </th>
+          <td>
+            <input type="checkbox" id="<?php echo MeprGroup::$upgrade_path_reset_period_str; ?>" name="<?php echo MeprGroup::$upgrade_path_reset_period_str; ?>" <?php checked($group->upgrade_path_reset_period); ?> />
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h4><strong><?php _e('Downgrade Path', 'memberpress'); ?></strong>
+  <?php
+    MeprAppHelper::info_tooltip(
+      'mepr-group-page-downgrade-path',
+      __('Fallback group when membership expires or is cancelled', 'memberpress'),
+      __('Select which membership in the group to fall back to when the paid subscription expires or is cancelled. If you are unsure, leave the default.', 'memberpress')
+    );
+  ?>
+  <?php MeprGroupsHelper::get_product_fallback_dropdown($group); ?>
   <h4><strong><?php _e('Memberships:', 'memberpress'); ?></strong>
   <?php
     MeprAppHelper::info_tooltip('mepr-group-products-list',
@@ -29,6 +73,14 @@
     </li>
   </div>
 
+  <br/><br/>
+  <input type="checkbox" id="<?php echo MeprGroup::$disable_change_plan_popup_str; ?>" name="<?php echo MeprGroup::$disable_change_plan_popup_str; ?>" <?php checked($group->disable_change_plan_popup); ?> />
+  <label for="<?php echo MeprGroup::$disable_change_plan_popup_str; ?>"><?php _e('Disable Change Plan Pop-Up', 'memberpress'); ?></label>
+  <?php
+    MeprAppHelper::info_tooltip('mepr-disable-change-plan-pop-up',
+                                __('Disable Change Plan Pop-Up', 'memberpress'),
+                                __('This will take the user to the Group pricing page when they click on Change Plan instead of showing them the quick selection pop-up.', 'memberpress'));
+  ?>
   <br/><br/>
   <input type="checkbox" id="<?php echo MeprGroup::$pricing_page_disabled_str; ?>" name="<?php echo MeprGroup::$pricing_page_disabled_str; ?>" <?php checked($group->pricing_page_disabled); ?> />
   <label for="<?php echo MeprGroup::$pricing_page_disabled_str; ?>"><?php _e('Disable Pricing Page', 'memberpress'); ?></label>

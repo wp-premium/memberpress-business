@@ -25,6 +25,31 @@ function mepr_show_content_dropdown(field_name, type) {
   });
 }
 
+//Renders the access rule conditions based on the selected type
+function mepr_show_access_options(selected_option) {
+  var $ = jQuery;
+
+  var access_type = (selected_option.value=='' ? 'blank' : selected_option.value);
+  var operator_tpl = MeprRule.access_row[selected_option.value].operator_tpl;
+  var condition_tpl = MeprRule.access_row[selected_option.value].condition_tpl;
+
+  var operator_element = $(selected_option).parent().parent().find('.mepr-rule-access-operator-input');
+  var condition_element = $(selected_option).parent().parent().find('.mepr-rule-access-condition-input');
+
+  operator_element.replaceWith(operator_tpl);
+  condition_element.replaceWith(condition_tpl);
+
+  if(access_type=='member') {
+    //Init all the suggest autocomplete fields
+    $('.mepr_suggest_user').suggest(
+      ajaxurl + '?action=mepr_user_search', {
+        delay: 500,
+        minchars: 2
+      }
+    );
+  }
+}
+
 function mepr_autocomplete_setup( type ) {
   // If there's no autocomplete thing setup then just blow outta here
   if( jQuery('.mepr-rule-types-autocomplete').length == 0 ) { return; }
@@ -44,7 +69,10 @@ function mepr_autocomplete_setup( type ) {
   });
 
   jQuery('.mepr-rule-types-autocomplete').autocomplete({
-    source: ajaxurl+'?action=mepr_rule_content_search&type='+type,
+    //source: ajaxurl+'?action=mepr_rule_content_search&type='+encodeURI(type),
+    source: function(request, response) {
+      jQuery.post(ajaxurl, {action: 'mepr_rule_content_search', type: type, term: request.term}, response, 'json');
+    },
     minLength: 2,
     focus: function( event, ui ) {
       jQuery( "#rule-content-text" ).val( ui.item.label );
@@ -86,6 +114,25 @@ function mepr_update_rule_post_title( type, content ) {
 }
 
 (function($) {
+  $(document).on('click', 'a.remove-rule-condition', function() {
+    var rule_access_condition_id = $(this).prevAll("input[type=hidden]").val();
+    var access_row = $(this).parent().parent();
+    if(rule_access_condition_id ) {
+      var data = {
+        action:  'mepr_remove_access_condition',
+        rule_access_condition_id : rule_access_condition_id ,
+      };
+      $.post(ajaxurl, data, function() {
+        $(access_row).remove();
+      });
+    }
+    else {
+      $(access_row).remove();
+    }
+
+    return false;
+  });
+
   $(document).ready(function() {
     //MORE AUTO GEN STUFF
     $('#title').blur(function() {
@@ -111,14 +158,6 @@ function mepr_update_rule_post_title( type, content ) {
 
     mepr_autocomplete_setup( $('#_mepr_rules_type').val() );
 
-    //Hide Partial Content Codes
-    $('div#partial_content_codes_hidden').hide();
-
-    $('a#partial_content_codes').click(function() {
-      $('div#partial_content_codes_hidden').slideToggle('fast');
-      return false;
-    });
-
     //Toggler for drips
     if($('#_mepr_rules_drip_enabled').is(":checked")) {
       $('#mepr-rules-drip-area').show();
@@ -137,14 +176,6 @@ function mepr_update_rule_post_title( type, content ) {
     }
     $('#_mepr_rules_expires_enabled').click(function() {
       $('#mepr-rules-expires-area').slideToggle('fast');
-    });
-
-    //Validate before saving post
-    $('#publish').click(function() {
-      if(!$('select.mepr-rule-access-select').val()) {
-        alert(MeprRule.mepr_no_products_message); //Alerts user that they must create Memberships before they can save Rules
-        return false;
-      }
     });
 
     //Fixed date drips/expirations js
@@ -180,6 +211,12 @@ function mepr_update_rule_post_title( type, content ) {
       mepr_update_rule_post_title( $('#_mepr_rules_type').val(), $(this).val() );
     });
 
+    $('a#add-new-rule-condition').click(function() {
+      var row_tpl = MeprRule.access_row['blank'].row_tpl;
+      $('#mepr-access-rows').append(row_tpl);
+      return false;
+    });
+
     var unauth_custom_ids = {
       excerpt: {
         src: '_mepr_rules_unauth_excerpt_type',
@@ -206,6 +243,11 @@ function mepr_update_rule_post_title( type, content ) {
     unauth_custom(unauth_custom_ids.message.src,unauth_custom_ids.message.target);
     $('#'+unauth_custom_ids.message.src).change( function() {
       unauth_custom(unauth_custom_ids.message.src,unauth_custom_ids.message.target);
+    });
+
+    //jQuery form validation
+    $.validate({
+      errorMessagePosition : 'inline'
     });
   });
 })(jQuery);

@@ -189,6 +189,7 @@
           $('#_mepr_expire_after').val(1);
           $('#_mepr_expire_unit').val('days');
           $('#_mepr_allow_renewal').prop('checked', false);
+          $('#_mepr_allow_renewal-fixed').prop('checked', false); //Same as above really
         }});
         $('.mepr-product-expire-fixed').slideUp({complete: function() {
           $('#_mepr_expire_fixed').val(today);
@@ -214,12 +215,22 @@
 
   //Custom thank you message checkbox
     if($('#_mepr_thank_you_page_enabled').is(":checked")) {
+      $('#_mepr_thank_you_page_type_message:checked, #_mepr_thank_you_page_type_page:checked').nextAll('div:first').show();
       $('div#mepr-product-thank-you-area').show();
     } else {
       $('div#mepr-product-thank-you-area').hide();
     }
     $('#_mepr_thank_you_page_enabled').click(function() {
+      $('#_mepr_thank_you_page_type_message:checked, #_mepr_thank_you_page_type_page:checked').nextAll('div:first').show();
       $('div#mepr-product-thank-you-area').slideToggle();
+    });
+    $('#_mepr_thank_you_page_type_message').on('click', function() {
+      $('#mepr-product-thank-you-page-id').hide();
+      $('#mepr-product-thank-you-message').show();
+    });
+    $('#_mepr_thank_you_page_type_page').on('click', function() {
+      $('#mepr-product-thank-you-message').hide();
+      $('#mepr-product-thank-you-page-id').show();
     });
 
 /*****************************************************************************/
@@ -516,6 +527,21 @@
       else {
         $('#mepr-product-disable-address-fields-wrap').fadeIn();
       }
+    });
+
+    // Enable all prices
+    var check_pricing_display = function() {
+      if($('#mepr-pricing-display').val()=='custom') {
+        $('#mepr-custom-pricing-display').slideDown();
+      }
+      else {
+        $('#mepr-custom-pricing-display').slideUp();
+      }
+    };
+
+    check_pricing_display();
+    $('#mepr-pricing-display').on('change', function() {
+      check_pricing_display();
     });
   });
 })(jQuery);

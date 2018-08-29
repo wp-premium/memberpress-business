@@ -23,10 +23,10 @@ class MeprCoupon extends MeprCptModel {
   public $discount_types;
 
   /*** Instance Methods ***/
-  public function __construct($id = null) {
+  public function __construct($obj = null) {
     $this->discount_types = array('percent', 'dollar');
     $this->load_cpt(
-      $id,
+      $obj,
       self::$cpt,
       array(
         'should_expire' => false,
@@ -79,17 +79,23 @@ class MeprCoupon extends MeprCptModel {
   }
 
   public static function get_all_active_coupons() {
-    return get_posts(array('numberposts' => -1, 'post_type' => self::$cpt, 'post_status' => 'publish'));
+    return MeprCptModel::all('MeprCoupon');
   }
 
-  public static function get_one_from_code($code) {
+  public static function get_one_from_code($code, $ignore_status = false) {
     global $wpdb;
+
+    //Ignore the status here?
+    $and_status = "AND post_status = 'publish'";
+    if($ignore_status) {
+      $and_status = '';
+    }
 
     $q = "SELECT ID
             FROM {$wpdb->posts}
             WHERE post_title = %s
               AND post_type = %s
-              AND post_status = 'publish'";
+              {$and_status}";
     $id = $wpdb->get_var($wpdb->prepare($q, $code, self::$cpt));
 
     if(!$id) {
@@ -160,8 +166,8 @@ class MeprCoupon extends MeprCptModel {
       $coupons = self::get_all_active_coupons();
 
       if(!empty($coupons)) {
-        foreach($coupons as $c) {
-          $coupon = new MeprCoupon($c->ID);
+        foreach($coupons as $coupon) {
+          // $coupon = new MeprCoupon($c->ID); //reduntant
 
           if($coupon->should_expire && $date > $coupon->expires_on) {
             $coupon->mark_as_expired();
@@ -198,35 +204,28 @@ class MeprCoupon extends MeprCptModel {
     $mepr_db = new MeprDb();
     $tcount = 0;
 
-    //Query unique subscriptions first and get a count
-    //Prevents counting a coupon code on multiple payments
-    //for the same subscription_id
-    $sub = "SELECT post_id
-              FROM {$wpdb->postmeta}
-              WHERE meta_key = %s
-                AND meta_value <> %s";
+    $sq = "
+      SELECT COUNT(DISTINCT subscription_id)
+        FROM {$mepr_db->transactions}
+       WHERE coupon_id = %d
+         AND subscription_id > 0
+         AND txn_type IN (%s,%s);
+    ";
 
-    $sub = $wpdb->prepare($sub, MeprSubscription::$status_str, MeprSubscription::$pending_str);
-
-    $sq = "SELECT COUNT(DISTINCT subscription_id)
-            FROM {$mepr_db->transactions}
-            WHERE coupon_id = %d
-              AND subscription_id > 0
-              AND subscription_id IN ({$sub})
-              AND status IN (%s, %s)";
-
-    $sq = $wpdb->prepare($sq, $this->ID, MeprTransaction::$complete_str, MeprTransaction::$confirmed_str);
+    $sq = $wpdb->prepare($sq, $this->ID, MeprTransaction::$payment_str, MeprTransaction::$subscription_confirmation_str);
 
     if($sqcount = $wpdb->get_var($sq)) { $tcount += $sqcount; }
 
-    //Query lifetime payments next
-    $lq = "SELECT COUNT(*)
-            FROM {$mepr_db->transactions}
-            WHERE coupon_id = %d
-              AND (subscription_id = 0 || subscription_id IS NULL)
-              AND status = %s";
+    //Query one-time payments next
+    $lq = "
+      SELECT COUNT(*)
+        FROM {$mepr_db->transactions}
+       WHERE coupon_id = %d
+         AND (subscription_id <= 0 OR subscription_id IS NULL)
+         AND txn_type = %s
+    ";
 
-    $lq = $wpdb->prepare($lq, $this->ID, MeprTransaction::$complete_str);
+    $lq = $wpdb->prepare($lq, $this->ID, MeprTransaction::$payment_str);
 
     if($lqcount = $wpdb->get_var($lq)) { $tcount += $lqcount; }
 

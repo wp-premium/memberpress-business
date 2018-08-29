@@ -1,15 +1,15 @@
 .icon32 {
   float: right;
   display: inline-block;
-  background:url('../images/memberpress-32.png') !important;
-  width: 267px !important;
+  background:url('../images/memberpress-logo.svg') !important;
+  width: 200px !important;
   height: 32px !important;
 }
 
 @media all and (-webkit-min-device-pixel-ratio: 1.5) {
   .icon32 {
-    background-image: url('../images/memberpress-32@2x.png') !important;
-    background-size: 267px 32px !important;
+    background-image: url('../images/memberpress-logo.svg') !important;
+    background-size: 200px 32px !important;
   }
 }
 
@@ -100,3 +100,4 @@ div#mepr-shortcode-group-pricing-boxes-area {
 .view-switch, #post-query-submit {
   display: none;
 }
+

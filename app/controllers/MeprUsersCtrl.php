@@ -32,11 +32,40 @@ class MeprUsersCtrl extends MeprBaseCtrl {
     add_filter('manage_users_sortable_columns', 'MeprUsersCtrl::sortable_extra_user_columns');
     add_filter('manage_users_custom_column', 'MeprUsersCtrl::manage_extra_user_columns', 10, 3);
     add_action('pre_user_query', 'MeprUsersCtrl::extra_user_columns_query_override');
-
     add_action('wp_ajax_mepr_user_search', 'MeprUsersCtrl::user_search');
+    add_filter('wp_privacy_personal_data_erasers', array($this, 'register_mepr_data_eraser'), 10);
 
     //Shortcodes
     add_shortcode('mepr-list-subscriptions', 'MeprUsersCtrl::list_users_subscriptions');
+  }
+
+  public static function register_mepr_data_eraser($erasers) {
+    $erasers[MEPR_PLUGIN_NAME] = array(
+      'eraser_friendly_name' => MEPR_PLUGIN_NAME,
+      'callback'             => array('MeprUsersCtrl', 'erase_pii'),
+    );
+
+    return $erasers;
+  }
+
+  public static function erase_pii($email, $page = 1) {
+    $user = get_user_by('email', $email);
+
+    delete_user_meta($user->ID, 'mepr_vat_number');
+    delete_user_meta($user->ID, 'mepr-geo-country');
+    delete_user_meta($user->ID, 'mepr-address-one');
+    delete_user_meta($user->ID, 'mepr-address-two');
+    delete_user_meta($user->ID, 'mepr-address-city');
+    delete_user_meta($user->ID, 'mepr-address-state');
+    delete_user_meta($user->ID, 'mepr-address-zip');
+    delete_user_meta($user->ID, 'mepr-address-country');
+
+    return array(
+      'items_removed' => true,
+      'items_retained' => false,
+      'messages' => array(),
+      'done' => true,
+    );
   }
 
   public static function display_unauthorized_page() {
@@ -47,9 +76,10 @@ class MeprUsersCtrl extends MeprBaseCtrl {
   }
 
   public static function resend_welcome_email_callback() {
+    $ajax_nonce = $_REQUEST['nonce'];
     $mepr_options = MeprOptions::fetch();
 
-    if(wp_verify_nonce($_REQUEST['_mepr_nonce'], 'mepr-resend-welcome-email')) {
+    if(wp_verify_nonce($ajax_nonce, 'mepr_resend_welcome_email')) {
       if(MeprUtils::is_logged_in_and_an_admin()) {
         $usr = new MeprUser($_REQUEST['uid']);
 
@@ -107,7 +137,9 @@ class MeprUsersCtrl extends MeprBaseCtrl {
 
     if($hook == 'user-edit.php' || $hook == 'profile.php') {
       wp_enqueue_style('mepr-jquery-ui-smoothness', $url);
-      wp_enqueue_script('mepr-date-picker-js', MEPR_JS_URL.'/date_picker.js', array('jquery-ui-datepicker'), MEPR_VERSION);
+      wp_enqueue_style('jquery-ui-timepicker-addon', MEPR_CSS_URL.'/jquery-ui-timepicker-addon.css', array('mepr-jquery-ui-smoothness'));
+      wp_register_script('mepr-timepicker-js', MEPR_JS_URL.'/jquery-ui-timepicker-addon.js', array('jquery-ui-datepicker'));
+      wp_register_script('mepr-date-picker-js', MEPR_JS_URL.'/date_picker.js', array('mepr-timepicker-js'), MEPR_VERSION);
       wp_enqueue_script('jquery-clippy', MEPR_JS_URL.'/jquery.clippy.js', array('jquery'));
       wp_enqueue_script('mp-i18n', MEPR_JS_URL.'/i18n.js', array('jquery'));
       wp_localize_script('mp-i18n', 'MeprI18n', array('states' => MeprUtils::states()));
@@ -129,7 +161,7 @@ class MeprUsersCtrl extends MeprBaseCtrl {
     $user = new MeprUser($user_id);
 
     if(isset($_POST[MeprUser::$user_message_str])) {
-      update_user_meta($user_id, MeprUser::$user_message_str, (string)$_POST[MeprUser::$user_message_str]);
+      update_user_meta($user_id, MeprUser::$user_message_str, (string)wp_kses_post($_POST[MeprUser::$user_message_str]));
     }
 
     //Get the right custom fields
@@ -150,11 +182,11 @@ class MeprUsersCtrl extends MeprBaseCtrl {
 
     //Since we use user_* for these, we need to artifically set the $_POST keys correctly for this to work
     if(!isset($_POST['first_name']) || empty($_POST['first_name'])) {
-      $_POST['first_name'] = (isset($_POST['user_first_name']))?stripslashes($_POST['user_first_name']):'';
+      $_POST['first_name'] = (isset($_POST['user_first_name']))?sanitize_text_field(wp_unslash($_POST['user_first_name'])):'';
     }
 
     if(!isset($_POST['last_name']) || empty($_POST['last_name'])) {
-      $_POST['last_name'] = (isset($_POST['user_last_name']))?stripslashes($_POST['user_last_name']):'';
+      $_POST['last_name'] = (isset($_POST['user_last_name']))?sanitize_text_field(wp_unslash($_POST['user_last_name'])):'';
     }
 
     $custom_fields[] = (object)array('field_key' => 'first_name', 'field_type' => 'text');
@@ -163,6 +195,9 @@ class MeprUsersCtrl extends MeprBaseCtrl {
     if($mepr_options->show_address_fields) {
       $custom_fields = array_merge($mepr_options->address_fields, $custom_fields);
     }
+
+    if($mepr_options->require_privacy_policy && isset($_POST['mepr_agree_to_privacy_policy']))
+      update_user_meta($user_id, 'mepr_agree_to_privacy_policy', isset($_POST['mepr_agree_to_privacy_policy']));
 
     // Even though the validate_extra_profile_fields function will show an error on the
     // dashboard profile. It doesn't prevent the profile from saved because
@@ -173,15 +208,25 @@ class MeprUsersCtrl extends MeprBaseCtrl {
     if(empty($errors)) {
       // TODO: move this somewhere it makes more sense
       if(isset($_POST['mepr-geo-country'])) {
-        update_user_meta($user_id, 'mepr-geo-country', $_POST['mepr-geo-country']);
+        update_user_meta($user_id, 'mepr-geo-country', sanitize_text_field($_POST['mepr-geo-country']));
       }
 
       foreach($custom_fields as $line) {
         //Don't do anything if this field isn't shown during signup, and this is a signup
         if($is_signup && isset($line->show_on_signup) && !$line->show_on_signup) { continue; }
+        //Only allow admin to update if it is not shown in account
+        if(!is_admin() && !$is_signup && isset($line->show_in_account) && !$line->show_in_account) { continue; }
 
         if(isset($_POST[$line->field_key]) && !empty($_POST[$line->field_key])) {
-          update_user_meta($user_id, $line->field_key, $_POST[$line->field_key]);
+          if(in_array($line->field_type, array('checkboxes', 'multiselect'))) {
+            update_user_meta($user_id, $line->field_key, array_map('sanitize_text_field', $_POST[$line->field_key]));
+          }
+          elseif($line->field_type == 'textarea') {
+            update_user_meta($user_id, $line->field_key, sanitize_textarea_field($_POST[$line->field_key]));
+          }
+          else {
+            update_user_meta($user_id, $line->field_key, sanitize_text_field($_POST[$line->field_key]));
+          }
         }
         else {
           if($line->field_type === 'checkbox') {
@@ -249,8 +294,12 @@ class MeprUsersCtrl extends MeprBaseCtrl {
       if($is_signup && $line->required && !$line->show_on_signup) {
         $line->required = false;
       }
+      elseif(!$is_signup && !is_admin() && isset($line->show_in_account) && !$line->show_in_account) {
+        //Account page shouldn't show errors if the fields have been hidden from the account page
+        $line->required = false;
+      }
 
-      if((!isset($_POST[$line->field_key]) || empty($_POST[$line->field_key])) && $line->required) {
+      if((!isset($_POST[$line->field_key]) || (empty($_POST[$line->field_key]) && $_POST[$line->field_key] != '0')) && $line->required) {
         $errs[] = sprintf(__('%s is required.', 'memberpress'), stripslashes($line->field_name));
 
         //This allows us to run this on dashboard profile fields as well as front end
@@ -268,8 +317,9 @@ class MeprUsersCtrl extends MeprBaseCtrl {
       die('-1');
     }
 
-    $s = $_GET['q']; // is this slashed already?
-    $s = trim($s);
+    // jQuery suggest plugin has already trimmed and escaped user input (\ becomes \\)
+    // so we just need to sanitize the username
+    $s = sanitize_user($_GET['q']);
 
     if(strlen($s) < 2) {
       die; // require 2 chars for matching
@@ -322,8 +372,8 @@ class MeprUsersCtrl extends MeprBaseCtrl {
     $user = new MeprUser($user_id);
 
     if($column_name == 'mepr_registered') {
-      $registered = strtotime($user->user_registered);
-      return date_i18n('M j, Y', $registered) . '<br/>' . date_i18n('g:i A', $registered);
+      $registered = $user->user_registered;
+      return MeprAppHelper::format_date($registered, __('Unknown', 'memberpress'), 'M j, Y') . '<br/>' . MeprAppHelper::format_date($registered, __('Unknown', 'memberpress'), 'g:i A');
     }
 
     if($column_name == 'mepr_products') {
@@ -341,7 +391,7 @@ class MeprUsersCtrl extends MeprBaseCtrl {
       $login = $user->get_last_login_data();
 
       if(!empty($login)) {
-        return date_i18n('M j, Y', strtotime($login->created_at)) . '<br/>' . date_i18n('g:i A', strtotime($login->created_at));
+        return MeprAppHelper::format_date($login->created_at, __('Never', 'memberpress'), 'M j, Y') . '<br/>' . MeprAppHelper::format_date($login->created_at, __('Never', 'memberpress'), 'g:i A');
       }
       else {
         return __('Never', 'memberpress');

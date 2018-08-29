@@ -56,7 +56,7 @@ class MeprOptionsHelper {
   }
 
   public static function payment_currencies_dropdown($field_name, $payment_currency) {
-    $payment_currencies = MeprHooks::apply_filters('mepr-currency-symbols', array('$', '£', '€', '¥', 'kr', 'R$', '฿', '₹', 'zł', ' лв', ' Ft', 'Rp', 'R', '₪', '﷼', 'CHF', 'KSh', 'RM', 'руб', 'NT$', 'Mex$', 'P', 'lei', 'JOD', '₺', 'S/.'));
+    $payment_currencies = MeprHooks::apply_filters('mepr-currency-symbols', array('$', '£', '€', '¥', 'kr', 'Kn', 'R$', '฿', '₹', 'zł', ' лв', ' Ft', 'Rp', 'R', '₪', '﷼', 'CHF', 'KSh', 'RM', 'Rs', 'руб', 'NT$', 'Mex$', 'P', 'lei', 'JOD', '₺', 'S/.', '₱', 'د.إ', 'Kč', '₦', '₩', '₫'));
     $field_value = isset($_POST[$field_name])?$_POST[$field_name]:null;
 
     ?>
@@ -64,7 +64,7 @@ class MeprOptionsHelper {
       <?php
         foreach($payment_currencies as $curr_currency) {
           ?>
-          <option value="<?php echo $curr_currency; ?>" <?php echo (((isset($_POST[$field_name]) and $_POST[$field_name] == $curr_currency) or (!isset($_POST[$field_name]) and $payment_currency == $curr_currency))?' selected="selected"':''); ?>><?php echo $curr_currency; ?>&nbsp;</option>
+          <option value="<?php echo $curr_currency; ?>" <?php selected(($payment_currency == $curr_currency)); ?>><?php echo $curr_currency; ?>&nbsp;</option>
           <?php
         }
       ?>
@@ -73,7 +73,7 @@ class MeprOptionsHelper {
   }
 
   public static function payment_currency_code_dropdown($field_name, $code) {
-    $codes = MeprHooks::apply_filters('mepr-currency-codes', array('USD', 'GBP', 'EUR', 'JPY', 'AUD', 'BRL', 'CAD', 'HKD', 'NZD', 'SGD', 'SEK', 'THB', 'INR', 'PLN', 'BGN', 'HUN', 'HUF', 'IDR', 'ZAR', 'NOK', 'DKK', 'ILS', 'SAR', 'CHF', 'KES', 'MYR', 'RUB', 'TWN', 'MXN', 'BWP', 'RON', 'JOD', 'TRY', 'PEN'));
+    $codes = MeprHooks::apply_filters('mepr-currency-codes', array('USD', 'AED', 'AUD', 'BGN', 'BRL', 'BWP', 'CAD', 'CHF', 'COP', 'CZK', 'DKK', 'EUR', 'GBP', 'HKD', 'HRK', 'HUF', 'HUN', 'IDR', 'ILS', 'INR', 'JOD', 'JPY', 'KES', 'KRW', 'MXN', 'MYR', 'NGN', 'NOK', 'NZD', 'PEN', 'PHP', 'PKR', 'PLN', 'RON', 'RUB', 'SAR', 'SEK', 'SGD', 'THB', 'TRY', 'TWN', 'VND', 'ZAR'));
     $field_value = isset($_POST[$field_name])?$_POST[$field_name]:null;
 
     ?>
@@ -81,7 +81,7 @@ class MeprOptionsHelper {
       <?php
         foreach($codes as $curr_code) {
           ?>
-          <option value="<?php echo $curr_code; ?>" <?php echo (((isset($_POST[$field_name]) and $_POST[$field_name] == $curr_code) or (!isset($_POST[$field_name]) and $code == $curr_code))?' selected="selected"':''); ?>><?php echo $curr_code; ?>&nbsp;</option>
+          <option value="<?php echo $curr_code; ?>" <?php selected(($code == $curr_code)); ?>><?php echo $curr_code; ?>&nbsp;</option>
           <?php
         }
       ?>
@@ -90,7 +90,7 @@ class MeprOptionsHelper {
   }
 
   public static function payment_language_code_dropdown($field_name, $code) {
-    $codes = MeprHooks::apply_filters('mepr-language-codes', array('US', 'AU', 'CN', 'EN', 'FR', 'BR', 'DE', 'IT', 'JP', 'ES', 'GB', 'SE', 'TH', 'PL', 'BG', 'HU', 'ID', 'PT', 'ZA', 'NO', 'DK', 'HE', 'FI', 'SR', 'CH', 'SW', 'NL', 'MS', 'RU', 'TW', 'MX', 'TN', 'RO', 'AR', 'SK', 'TR', 'PE'));
+    $codes = MeprHooks::apply_filters('mepr-language-codes', array('US', 'AE', 'AR', 'AU', 'BG', 'BR', 'CH', 'CN', 'CO', 'CZ', 'DE', 'DK', 'EN', 'ES', 'FI', 'FR', 'GB', 'HE', 'HR', 'HU', 'ID', 'IT', 'JP', 'KR', 'MS', 'MX', 'NL', 'NO', 'PE', 'PH', 'PL', 'PT', 'RO', 'RU', 'SE', 'SK', 'SR', 'SW', 'TH', 'TN', 'TR', 'TW', 'VI', 'ZA'));
     $field_value = isset($_POST[$field_name])?$_POST[$field_name]:null;
 
     ?>
@@ -98,7 +98,7 @@ class MeprOptionsHelper {
       <?php
         foreach($codes as $curr_code) {
           ?>
-          <option value="<?php echo $curr_code; ?>" <?php echo (((isset($_POST[$field_name]) and $_POST[$field_name] == $curr_code) or (!isset($_POST[$field_name]) and $code == $curr_code))?' selected="selected"':''); ?>><?php echo $curr_code; ?>&nbsp;</option>
+          <option value="<?php echo $curr_code; ?>" <?php selected(($code == $curr_code)); ?>><?php echo $curr_code; ?>&nbsp;</option>
           <?php
         }
       ?>
@@ -113,6 +113,8 @@ class MeprOptionsHelper {
       <select name="<?php echo $field_name; ?>" id="<?php echo $field_name; ?>" data-id="<?php echo $obj_id; ?>" class="mepr-dropdown mepr-gateways-dropdown">
       <?php
         foreach($gateways as $gateway => $gateway_name) {
+          if($gateway == 'MeprPayPalProGateway') { continue; } //Don't show PayPal Pro any more to new users
+
           $obj = MeprGatewayFactory::fetch($gateway);
 
           ?>
@@ -131,6 +133,7 @@ class MeprOptionsHelper {
                                       'field_type'      => 'text',
                                       'default_value'   => '',
                                       'show_on_signup'  => false,
+                                      'show_in_account' => true,
                                       'required'        => false,
                                       'options'         => array()));
 
@@ -158,6 +161,7 @@ class MeprOptionsHelper {
     $mepr_options = MeprOptions::fetch();
 
     $pms = $pms ? $pms : array_keys($mepr_options->integrations);
+    $pms = MeprHooks::apply_filters('mepr_options_helper_payment_methods',$pms,$field_name);
 
     if(count($pms) == 0):
       return false;
@@ -165,39 +169,9 @@ class MeprOptionsHelper {
       $pm_id = array_shift($pms);
       $obj = $mepr_options->payment_method($pm_id);
 
-      $label = esc_html(trim($obj->label));
-      $desc = esc_html(trim(stripslashes($obj->desc)));
-
-      if($obj->use_icon && !empty($obj->icon)) {
-        $icon = '<span class="mepr-payment-method-icon"><img src="'.$obj->icon.'" height="32px" /></span>';
-      }
-      else {
-        $icon = '';
-      }
-
-      if($obj->use_label && !empty($obj->label)) {
-        $label = '<span class="mepr-payment-method-label-text">'.$label.'</span>';
-      }
-      else {
-        $label = '';
-      }
-
-      if($obj->use_desc && !empty($desc)) {
-        $desc = '<div id="mp-pm-desc-'.$obj->id.'" class="mepr-payment-method-desc-text">'.$desc.'</div>';
-      }
-      else {
-        $desc = '';
-      }
-
       if($obj instanceof MeprBaseRealGateway):
         ?>
-        <div id="<?php echo $field_name; ?>" class="mp-form-row">
-          <div id="<?php echo "{$field_name}-{$obj->id}"; ?>" class="mepr-payment-method">
-            <input type="hidden" name="<?php echo $field_name; ?>" value="<?php echo $obj->id; ?>" />
-            <div class="mepr-payment-method-label"><?php echo $label.$icon; ?></div>
-            <?php echo $desc; ?>
-          </div>
-        </div>
+          <input type="hidden" name="<?php echo $field_name; ?>" value="<?php echo $obj->id; ?>" />
         <?php
       else:
         return false;
@@ -208,7 +182,7 @@ class MeprOptionsHelper {
         foreach($pms as $pm_id):
           $obj = $mepr_options->payment_method($pm_id);
           $label = esc_html(trim($obj->label));
-          $desc = esc_html(trim(stripslashes($obj->desc)));
+          $desc = wpautop(esc_html(trim(stripslashes($obj->desc))));
 
           // This will ensure that the first pm is checked by default
           if( $first ) {
@@ -240,20 +214,27 @@ class MeprOptionsHelper {
             $desc = '';
           }
 
-          if( $obj instanceof MeprBaseRealGateway ):
+          //filters for this stuffage
+          $icon   = MeprHooks::apply_filters('mepr_signup_form_payment_icon',         $icon,  $obj, $first);
+          $label  = MeprHooks::apply_filters('mepr_signup_form_payment_label',        $label, $obj, $first);
+          $desc   = MeprHooks::apply_filters('mepr_signup_form_payment_description',  $desc,  $obj, $first);
+
+          if($obj instanceof MeprBaseRealGateway):
             ?>
-            <div id="<?php echo "{$field_name}-{$obj->id}"; ?>" class="mepr-payment-method">
-              <div class="mepr-payment-method-label">
-                <label class="mp-checkbox-field">
-                  <input
-                    type="radio"
-                    name="<?php echo $field_name; ?>"
-                    class="mepr-form-radio"
-                    value="<?php echo $obj->id; ?>"
-                    <?php checked($_POST[$field_name],$obj->id) ?> />
-                  <?php echo $label.$icon; ?>
-                </label>
-                <?php echo $desc; ?>
+            <div class="mp-form-row mepr_payment_method">
+              <div id="<?php echo "{$field_name}-{$obj->id}"; ?>" class="mepr-payment-method">
+                <div class="mepr-payment-method-label">
+                  <label class="mp-checkbox-field">
+                    <input
+                      type="radio"
+                      name="<?php echo $field_name; ?>"
+                      class="mepr-form-radio"
+                      value="<?php echo $obj->id; ?>"
+                      <?php checked($_POST[$field_name],$obj->id) ?> />
+                    <?php echo $label.$icon; ?>
+                  </label>
+                  <?php echo $desc; ?>
+                </div>
               </div>
             </div>
             <?php
@@ -293,7 +274,7 @@ class MeprOptionsHelper {
 
         <div id="<?php echo $excerpt_type_str; ?>-size" class="mepr-hidden">
           <div>&nbsp;</div>
-          <i class="mp-icon-level-down"></i>
+          <i class="mp-icon-level-down-1"></i>
           <?php
             ob_start();
             ?>
@@ -346,5 +327,13 @@ class MeprOptionsHelper {
     </div>
     <?php
   }
-} //End class
 
+  public static function admin_privacy_settings_link() {
+    if(is_multisite()) {
+      return network_admin_url('privacy.php');
+    }
+    else {
+      return admin_url('privacy.php');
+    }
+  }
+} //End class

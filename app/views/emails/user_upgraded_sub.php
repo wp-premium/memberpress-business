@@ -1,5 +1,5 @@
 <?php if(!defined('ABSPATH')) {die('You are not allowed to call this page directly.');} ?>
-<div id="header" style="width: 680px; padding 0; margin: 0 auto; text-align: left;">
+<div id="header" style="width: 680px; padding: 0px; margin: 0 auto; text-align: left;">
   <h1 style="font-size: 30px; margin-bottom: 0;"><?php _ex('Your subscription has been upgraded', 'ui', 'memberpress'); ?></h1>
   <h2 style="margin-top: 0; color: #999; font-weight: normal;"><?php _ex('{$subscr_num} &ndash; {$blog_name}', 'ui', 'memberpress'); ?></h2>
 </div>

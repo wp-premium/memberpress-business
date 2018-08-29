@@ -2,7 +2,8 @@ var drawChart = function () {
   var currency_symbol = jQuery('div#mepr-widget-currency-symbol').attr('data-value');
 
   var args = {
-    action: 'mepr_widget_report'
+    action: 'mepr_widget_report',
+    report_nonce: MeprWidgetData.report_nonce
   };
 
   //Weekly stats

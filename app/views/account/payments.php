@@ -13,6 +13,7 @@ if(!empty($payments)) {
           <th><?php _ex('Method', 'ui', 'memberpress'); ?></th>
           <th><?php _ex('Status', 'ui', 'memberpress'); ?></th>
           <th><?php _ex('Invoice', 'ui', 'memberpress'); ?></th>
+          <?php MeprHooks::do_action('mepr_account_payments_table_header'); ?>
         </tr>
       </thead>
       <tbody>
@@ -37,6 +38,7 @@ if(!empty($payments)) {
               <td data-label="<?php _ex('Method', 'ui', 'memberpress'); ?>"><?php echo (is_object($pm)?$pm->label:_x('Unknown', 'ui', 'memberpress')); ?></td>
               <td data-label="<?php _ex('Status', 'ui', 'memberpress'); ?>"><?php echo MeprAppHelper::human_readable_status($payment->status); ?></td>
               <td data-label="<?php _ex('Invoice', 'ui', 'memberpress'); ?>"><?php echo $payment->trans_num; ?></td>
+              <?php MeprHooks::do_action('mepr_account_payments_table_row',$payment); ?>
             </tr>
         <?php endforeach; ?>
       </tbody>
@@ -54,7 +56,9 @@ if(!empty($payments)) {
   <?php
 }
 else {
-  _ex('You have no completed payments to display.', 'ui', 'memberpress');
+  ?><div class="mp-wrapper mp-no-subs"><?php
+    _ex('You have no completed payments to display.', 'ui', 'memberpress');
+  ?></div><?php
 }
 
 MeprHooks::do_action('mepr_account_payments', $mepr_current_user);

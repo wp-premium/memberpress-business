@@ -1,44 +1,4 @@
 jQuery(document).ready(function($) {
-  // Toggle Box from Checkbox
-  var mepr_toggle_box = function( checkbox, box, animate, reverse ) {
-    var show_box = function(box,animate) {
-      animate ? $(box).slideDown() : $(box).show();
-    };
-
-    var hide_box = function(box,animate) {
-      animate ? $(box).slideUp() : $(box).hide();
-    };
-
-    if ($(checkbox).is(':checked')) {
-      reverse ? hide_box(box,animate) : show_box(box,animate);
-    }
-    else {
-      reverse ? show_box(box,animate) : hide_box(box,animate);
-    }
-  };
-
-  // Setup all option toggle boxes
-  var mepr_toggle_boxes = function() {
-    var checkbox = '.mepr-toggle-checkbox';
-    var box = reverse = null;
-
-    $(checkbox).each(function() {
-      box = '.'+$(this).data('box');
-      reverse  = (typeof $(this).data('reverse') !== 'undefined');
-
-      mepr_toggle_box( this, box, false, reverse );
-
-      $(this).on( 'click', function() {
-        box = '.'+$(this).data('box');
-        reverse  = (typeof $(this).data('reverse') !== 'undefined');
-
-        mepr_toggle_box( this, box, true, reverse );
-      });
-    });
-  };
-
-  mepr_toggle_boxes();
-
   // Login form shortcode
   if($('#_mepr_manual_login_form').is(":checked")) {
     $('div#mepr-shortcode-login-page-area').show();
@@ -152,4 +112,3 @@ jQuery(document).ready(function($) {
     });
   });
 });
-

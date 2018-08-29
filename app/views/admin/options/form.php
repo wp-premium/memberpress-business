@@ -2,13 +2,13 @@
 
 <div class="wrap">
   <div class="icon32"></div>
-  <h2><?php _e('Options', 'memberpress'); ?><a href="http://www.memberpress.com/user-manual/" class="add-new-h2" target="_blank"><?php _e('User Manual', 'memberpress'); ?></a></h2>
+  <h2><?php _e('Options', 'memberpress'); ?><a href="http://memberpress.helpscoutdocs.com/" class="add-new-h2" target="_blank"><?php _e('User Manual', 'memberpress'); ?></a></h2>
 
   <?php MeprView::render('/admin/errors', get_defined_vars()); ?>
 
   <form name="mepr_options_form" id="mepr_options_form" class="mepr-form" method="post" action="" enctype="multipart/form-data">
     <input type="hidden" name="action" value="process-form">
-    <?php wp_nonce_field('update-options'); ?>
+    <?php wp_nonce_field('mepr_update_options', 'mepr_options_nonce'); ?>
 
     <h2 id="mepr-reports-column-selector" class="nav-tab-wrapper">
       <a class="nav-tab nav-tab-active" id="pages" href="#"><?php _e('Pages', 'memberpress'); ?></a>
@@ -177,9 +177,9 @@
             <select name="<?php echo $mepr_options->enforce_strong_password_str; ?>" id="<?php echo $mepr_options->enforce_strong_password_str; ?>">
               <option value="0" <?php selected($mepr_options->enforce_strong_password, 0); ?>><?php _e('Hide', 'memberpress'); ?></option>
               <option value="show" <?php selected($mepr_options->enforce_strong_password, 'show'); ?>><?php _e('Show', 'memberpress'); ?></option>
-              <option value="weak" <?php selected($mepr_options->enforce_strong_password, 'weak'); ?>><?php _e('Show &amp; Require Weak Password or Stronger', 'memberpress'); ?></option>
-              <option value="medium" <?php selected($mepr_options->enforce_strong_password, 'medium'); ?>><?php _e('Show &amp; Require Medium Password or Stronger (Recommended)', 'memberpress'); ?></option>
-              <option value="strong" <?php selected($mepr_options->enforce_strong_password, 'strong'); ?>><?php _e('Show &amp; Require Strong Password', 'memberpress'); ?></option>
+              <option value="weak" <?php selected($mepr_options->enforce_strong_password, 'weak'); // Mapped as "Medium" ?>><?php _e('Show &amp; Require Medium Password or Stronger (Recommended)', 'memberpress'); ?></option>
+              <option value="medium" <?php selected($mepr_options->enforce_strong_password, 'medium'); // Mapped as "Strong" ?>><?php _e('Show &amp; Require Strong Password or Stronger', 'memberpress'); ?></option>
+              <option value="strong" <?php selected($mepr_options->enforce_strong_password, 'strong'); // Mapped as "Very Strong" ?>><?php _e('Show &amp; Require Very Strong Password', 'memberpress'); ?></option>
             </select>
           </div>
         </div>
@@ -221,9 +221,19 @@
                                                __('1 Day Grace Period', 'memberpress'),
                                                __('PayPal, Stripe, and Authorize.net can sometimes take up to 24 hours to process the first payment on a members recurring subscription. By default MemberPress allows a 1 day grace period after a member signs up, so they can access the site immediately rather than wait for their payment to clear.', 'memberpress') . '<br/><br/>' . __('If you would like to make them wait for the payment to clear before they are allowed to access the site, then enable this option.', 'memberpress') ); ?>
           </div>
+          <?php /* Temporarily disable the SPC checkbox until release
           <div class="mp-col-5">
-            <?php //Nothing here for now ?>
+            <label for="<?php echo $mepr_options->enable_spc_str; ?>">
+              <input type="checkbox" name="<?php echo $mepr_options->enable_spc_str; ?>" id="<?php echo $mepr_options->enable_spc_str; ?>" <?php checked($mepr_options->enable_spc); ?> />
+              <span><?php _e('Enable Single Page Checkout', 'memberpress'); ?></span>
+            </label>
+            <?php MeprAppHelper::info_tooltip( 'mepr-enable-spc',
+                                               __('Single Page Checkout', 'memberpress'),
+                                               __('Enabling this will eliminate the second step of the checkout process. Users will be able to enter their personal and payment details during the first step instead. This setting has no effect for PayPal Standard or Express Checkout gateways.', 'memberpress')
+                                             );
+            ?>
           </div>
+           */ ?>
         </div>
         <div class="mp-row">
           <div class="mp-col-9">
@@ -248,6 +258,28 @@
             </div>
             <div class="mp-col-4">
               <input type="text" id="<?php echo $mepr_options->tos_title_str; ?>" name="<?php echo $mepr_options->tos_title_str; ?>" class="regular-text" value="<?php echo stripslashes($mepr_options->tos_title); ?>" />
+            </div>
+          </div>
+        </div>
+        <div class="mp-row">
+          <div class="mp-col-10">
+            <label for="<?php echo $mepr_options->require_privacy_policy_str; ?>">
+              <input type="checkbox" name="<?php echo $mepr_options->require_privacy_policy_str; ?>" id="<?php echo $mepr_options->require_privacy_policy_str; ?>" <?php checked($mepr_options->require_privacy_policy); ?> />
+              <span><?php _e('Require Privacy Policy acceptance on membership registration forms', 'memberpress'); ?></span>
+            </label>
+          </div>
+        </div>
+        <div id="mepr_privacy_hidden" class="mepr-options-sub-pane mepr-hidden">
+          <div class="mp-row">
+            <div class="mp-col-3">
+              <span>
+                <?php if($privacy_page_link = MeprAppHelper::privacy_policy_page_link()): ?>
+                  <?php _e('Your Privacy Policy: ', 'memberpress'); ?>
+                  <a href="<?php echo $privacy_page_link; ?>"><?php echo $privacy_page_link; ?></a>
+                <?php else: ?>
+                  <?php _e(sprintf('Please create your %s.', '<a href="' . MeprOptionsHelper::admin_privacy_settings_link() . '">' . __('Privacy Policy Page', 'memberpress') . '</a>'), 'memberpress'); ?>
+                <?php endif; ?>
+              </span>
             </div>
           </div>
         </div>
@@ -360,6 +392,14 @@
     </div>
 
     <div id="emails" class="mepr-options-hidden-pane">
+      <h3><?php _e('Privacy Settings', 'memberpress'); ?></h3>
+      <div class="mepr-options-pane">
+        <input type="checkbox" name="<?php echo $mepr_options->include_email_privacy_link_str; ?>" id="<?php echo $mepr_options->include_email_privacy_link_str; ?>" <?php checked($mepr_options->include_email_privacy_link); ?> />
+        <label for="<?php echo $mepr_options->include_email_privacy_link_str; ?>"><?php _e('Inlcude Privacy Policy link', 'memberpress'); ?></label>
+        <?php MeprAppHelper::info_tooltip( $mepr_options->include_email_privacy_link_str,
+                                           __('Privacy Policy Link', 'memberpress'),
+                                           __("When this option is checked, a link to your site's Privacy Policy page will be included in all email communication.", 'memberpress') ); ?>
+      </div>
       <h3><?php _e('Send Mail From', 'memberpress'); ?></h3>
       <div class="mepr-options-pane">
         <label for="<?php echo $mepr_options->mail_send_from_name_str; ?>"><?php _e('From Name:', 'memberpress'); ?></label>

@@ -34,23 +34,28 @@ class MeprAvalaraTaxRateCtrl extends MeprBaseCtrl {
 
   public function find_rate($tax_rate, $country, $state, $postcode, $city, $street) {
     $mepr_options = MeprOptions::fetch();
-    $apikey   = urlencode($mepr_options->attr('tax_avalara_key'));
+    $apikey   = $mepr_options->attr('tax_avalara_key');
+    $accountID = $mepr_options->attr('tax_avalara_account_id');
+    $auth      = base64_encode($accountID . ':' . $apikey);
     $street   = urlencode($street);
     $city     = urlencode($city);
     $postcode = urlencode($postcode);
     $state    = urlencode($state);
 
     if( strtoupper($country) == 'US' ) {
-      $res = wp_remote_get(
-        "https://taxrates.api.avalara.com:443/address?country=usa&street={$street}&city={$city}&state={$state}&postal={$postcode}&apikey={$apikey}",
-        array('sslverify' => false, 'headers' => array(), 'body' => array())
+      $response = wp_remote_get(
+        "https://rest.avatax.com/api/v2/taxrates/byaddress?line1={$street}&country={$country}&city={$city}&region={$state}&postalCode={$postcode}",
+        array('headers' => array('Authorization' => "Basic {$auth}"))
       );
 
-      if(!is_wp_error($res)) {
-        $obj = json_decode($res['body']);
+      if(is_wp_error($response)) {
+        MeprUtils::debug_log(print_r($response, true));
+      }
+      else {
+        $response_body = json_decode($response['body']);
 
-        if(isset($obj->totalRate)) {
-          $tax_rate->tax_rate = $obj->totalRate;
+        if(isset($response_body->totalRate)) {
+          $tax_rate->tax_rate = $response_body->totalRate * 100; // MP expects a percent
           $tax_rate->tax_desc = __('Tax', 'memberpress');
         }
       }
@@ -59,4 +64,3 @@ class MeprAvalaraTaxRateCtrl extends MeprBaseCtrl {
     return $tax_rate;
   }
 }
-

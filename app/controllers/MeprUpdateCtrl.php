@@ -12,6 +12,10 @@ class MeprUpdateCtrl extends MeprBaseCtrl {
     add_action('admin_init', 'MeprUpdateCtrl::activate_from_define');
     add_action('admin_init', 'MeprUpdateCtrl::maybe_activate');
     add_action('wp_ajax_mepr_edge_updates', 'MeprUpdateCtrl::mepr_edge_updates');
+    //add_action('wp_ajax_mepr_rollback', 'MeprUpdateCtrl::rollback');
+
+    // Add a custom admin menu item
+    add_action('admin_menu', 'MeprUpdateCtrl::admin_menu', 50);
   }
 
   public static function route() {
@@ -29,6 +33,50 @@ class MeprUpdateCtrl extends MeprBaseCtrl {
         return self::display_form();
       }
     }
+  }
+
+  public static function admin_menu() {
+    // Create an official rollback page in the fashion of WordPress' built in upgrader
+    if(isset($_GET['page']) && $_GET['page'] == 'mepr-rollback') {
+      add_dashboard_page(__('Rollback MemberPress', 'memberpress'), __('Rollback MemberPress', 'memberpress'), 'update_plugins', 'mepr-rollback', 'MeprUpdateCtrl::rollback');
+    }
+  }
+
+  public static function rollback() {
+    // Ensure the rollback is valid
+    check_admin_referer('mepr_rollback_nonce');
+
+    // Permissions check
+    if(!current_user_can('update_plugins')) {
+      wp_die(__('You don\'t have sufficient permissions to rollback MemberPress.', 'memberpress'));
+    }
+
+    $transient = get_site_transient('update_plugins');
+    $transient = self::queue_update($transient, true, true);
+
+    $info = get_site_transient('mepr_update_info');
+
+    //Get the necessary class
+    include_once(ABSPATH . 'wp-admin/includes/class-wp-upgrader.php');
+    include_once(MEPR_LIB_PATH . '/class-rollback-memberpress-upgrader.php');
+
+    $args = wp_parse_args($_GET, array('page' => 'mepr-rollback'));
+
+    $nonce   = 'upgrade-plugin_' . MEPR_PLUGIN_NAME;
+    $url     = 'index.php?page=mepr-rollback';
+    $plugin  = MEPR_PLUGIN_NAME;
+    $version = $info['curr_version'];
+
+    $upgrader = new WP_Rollback_MemberPress_Upgrader(
+      new Plugin_Upgrader_Skin(compact('title','nonce','url','plugin','version'))
+    );
+
+    $upgrader->rollback($info);
+  }
+
+  public static function rollback_url() {
+    $nonce = wp_create_nonce('mepr_rollback_nonce');
+    return admin_url("index.php?page=mepr-rollback&_wpnonce={$nonce}");
   }
 
   public static function display_form($message='', $errors=array()) {
@@ -59,12 +107,10 @@ class MeprUpdateCtrl extends MeprBaseCtrl {
 
     $message = '';
     $errors = array();
-    $mepr_options->mothership_license = stripslashes($_POST[$mepr_options->mothership_license_str]);
-    $domain = urlencode(MeprUtils::site_domain());
+    $mepr_options->mothership_license = sanitize_text_field(wp_unslash($_POST[$mepr_options->mothership_license_str]));
 
     try {
-      $args = compact('domain');
-      $act = self::send_mothership_request("/license_keys/activate/{$mepr_options->mothership_license}", $args, 'post');
+      $act = self::send_mothership_request("/license_keys/jactivate/{$mepr_options->mothership_license}", self::activation_args(true), 'post');
       self::manually_queue_update();
       $mepr_options->store(false);
       $message = $act['message'];
@@ -80,6 +126,25 @@ class MeprUpdateCtrl extends MeprBaseCtrl {
     $mepr_options = MeprOptions::fetch();
     $activated = get_option('mepr_activated');
     return (!empty($mepr_options->mothership_license) && !empty($activated));
+  }
+
+  private static function activation_args($return_json=false) {
+    $args = array(
+      'domain' => urlencode(MeprUtils::site_domain()),
+      'extra_info' => array(
+        //'members' => array(
+        //  'paid' => MeprReports::get_paid_active_members_count(),
+        //  'free' => MeprReports::get_free_active_members_count(),
+        //  'inactive' => MeprReports::get_inactive_members_count(),
+        //)
+      )
+    );
+
+    if($return_json) {
+      $args = json_encode($args);
+    }
+
+    return $args;
   }
 
   public static function check_license_activation() {
@@ -107,7 +172,7 @@ class MeprUpdateCtrl extends MeprBaseCtrl {
   public static function maybe_activate() {
     $activated = get_option('mepr_activated');
 
-    if($activated==='') {
+    if(!$activated) {
       self::check_license_activation();
     }
   }
@@ -130,7 +195,7 @@ class MeprUpdateCtrl extends MeprBaseCtrl {
           delete_site_transient('mepr_addons');
         }
 
-        $act = self::send_mothership_request("/license_keys/activate/".MEMBERPRESS_LICENSE_KEY, $args, 'post');
+        $act = self::send_mothership_request("/license_keys/jactivate/".MEMBERPRESS_LICENSE_KEY, self::activation_args(true), 'post');
 
         self::manually_queue_update();
 
@@ -139,12 +204,17 @@ class MeprUpdateCtrl extends MeprBaseCtrl {
         $mepr_options->store(false);
 
         $message = $act['message'];
-        $callback = create_function( '', '$message = "'.$message.'"; ' .
-                                     'MeprView::render("/admin/errors", get_defined_vars());' );
+        $view = '/admin/errors';
+        $callback = function() use($view, $message) {
+          return MeprView::render($view, compact('message'));
+        };
       }
       catch(Exception $e) {
-        $callback = create_function( '', '$error = "'.$e->getMessage().'"; ' .
-                                     'MeprView::render("/admin/update/activation_warning", get_defined_vars());' );
+        $view = '/admin/update/activation_warning';
+        $error = $e->getMessage();
+        $callback = function() use($view, $error) {
+          return MeprView::render($view, compact('error'));
+        };
       }
 
       add_action( 'admin_notices', $callback );
@@ -153,7 +223,8 @@ class MeprUpdateCtrl extends MeprBaseCtrl {
 
   public static function deactivate() {
     $mepr_options = MeprOptions::fetch();
-    $domain = urlencode(MeprUtils::site_domain());
+    $domain       = urlencode(MeprUtils::site_domain());
+    $message      = '';
 
     try {
       $args = compact('domain');
@@ -176,10 +247,12 @@ class MeprUpdateCtrl extends MeprBaseCtrl {
     self::display_form($message);
   }
 
-  public static function queue_update($transient, $force=false) {
+  public static function queue_update($transient, $force=false, $rollback=false) {
     $mepr_options = MeprOptions::fetch();
 
-    if($force || (false === ($update_info = get_site_transient('mepr_update_info')))) {
+    $update_info = get_site_transient('mepr_update_info');
+
+    if($force || (false === $update_info)) {
       if(empty($mepr_options->mothership_license)) {
         // Just here to query for the current version
         $args = array();
@@ -198,6 +271,11 @@ class MeprUpdateCtrl extends MeprBaseCtrl {
 
           if( $mepr_options->edge_updates || ( defined( "MEMBERPRESS_EDGE" ) && MEMBERPRESS_EDGE ) ) {
             $args['edge'] = 'true';
+          }
+
+          if($rollback) {
+            $args['curr_version'] = MEPR_VERSION;
+            $args['rollback'] = 'true';
           }
 
           $license_info = self::send_mothership_request("/versions/info/{$mepr_options->mothership_license}", $args, 'post');
@@ -245,7 +323,7 @@ class MeprUpdateCtrl extends MeprBaseCtrl {
       extract( $update_info );
     }
 
-    if(isset($curr_version) && version_compare($curr_version, MEPR_VERSION, '>')) {
+    if(isset($curr_version) && ($rollback || version_compare($curr_version, MEPR_VERSION, '>'))) {
       $transient->response[MEPR_PLUGIN_SLUG] = (object)array(
         'id'          => $curr_version,
         'slug'        => 'memberpress',
@@ -316,11 +394,9 @@ class MeprUpdateCtrl extends MeprBaseCtrl {
     return $api;
   }
 
-  public static function send_mothership_request( $endpoint,
-                                                  $args=array(),
-                                                  $method='get',
-                                                  $domain='https://mothership.caseproof.com',
-                                                  $blocking=true ) {
+  public static function send_mothership_request( $endpoint, $args=array(), $method='get', $blocking=true ) {
+    $domain = defined('MEPR_MOTHERSHIP_DOMAIN') ? MEPR_MOTHERSHIP_DOMAIN : 'https://mothership.caseproof.com';
+
     $uri = "{$domain}{$endpoint}";
 
     $arg_array = array(
@@ -328,7 +404,7 @@ class MeprUpdateCtrl extends MeprBaseCtrl {
       'body'      => $args,
       'timeout'   => 15,
       'blocking'  => $blocking,
-      'sslverify' => false
+      'sslverify' => false,
     );
 
     $resp = wp_remote_request($uri, $arg_array);
@@ -363,11 +439,8 @@ class MeprUpdateCtrl extends MeprBaseCtrl {
     // toplevel_page_memberpress will only be accessible if the plugin is not enabled
     if($hook == 'memberpress_page_memberpress-updates' ||
        (!MeprUpdateCtrl::is_activated() && $hook == 'toplevel_page_memberpress')) {
-      wp_register_style('mepr-settings-table', MEPR_CSS_URL.'/settings_table.css', array(), MEPR_VERSION);
-      wp_enqueue_style('mepr-activate-css', MEPR_CSS_URL.'/admin-activate.css', array('mepr-settings-table'), MEPR_VERSION);
-
-      wp_register_script('mepr-settings-table', MEPR_JS_URL.'/settings_table.js', array(), MEPR_VERSION);
-      wp_enqueue_script('mepr-activate-js', MEPR_JS_URL.'/admin_activate.js', array('mepr-settings-table'), MEPR_VERSION);
+      wp_enqueue_style('mepr-activate-css', MEPR_CSS_URL.'/admin-activate.css', array('mepr-settings-table-css'), MEPR_VERSION);
+      wp_enqueue_script('mepr-activate-js', MEPR_JS_URL.'/admin_activate.js', array('mepr-settings-table-js'), MEPR_VERSION);
     }
   }
 

@@ -54,10 +54,17 @@ class MeprHooks {
       $tag = 'mepr_'.$tag;
     }
 
-    return array(
+    $tags = array(
       '-' => preg_replace('/[-_]/','-',$tag),
       '_' => preg_replace('/[-_]/','_',$tag)
     );
+
+    // in case the original tag has mixed dashes and underscores
+    if(!in_array($tag,array_values($tags))) {
+      $tags['*'] = $tag;
+    }
+
+    return $tags;
   }
 }
 

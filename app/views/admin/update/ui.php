@@ -17,16 +17,16 @@
     <tr>
       <td class="mepr-settings-table-nav">
         <ul class="mepr-sidebar-nav">
-          <li><a data-id="license"><?php _e('License', 'memberpress'); ?></a></li>
-          <li><a data-id="addons"><?php _e('Add-Ons', 'memberpress'); ?></a></li>
+          <li><a data-id="mepr-license"><?php _e('License', 'memberpress'); ?></a></li>
+          <li><a data-id="mepr-addons"><?php _e('Add-Ons', 'memberpress'); ?></a></li>
           <?php MeprHooks::do_action('mepr_updates_nav_items'); ?>
         </ul>
       </td>
       <td class="mepr-settings-table-pages">
-        <div class="mepr-page" id="license">
+        <div class="mepr-page" id="mepr-license">
           <?php MeprView::render('/admin/update/license', get_defined_vars()); ?>
         </div>
-        <div class="mepr-page" id="addons">
+        <div class="mepr-page" id="mepr-addons">
           <?php MeprView::render('/admin/update/addons', get_defined_vars()); ?>
         </div>
         <?php MeprHooks::do_action('mepr_updates_pages'); ?>

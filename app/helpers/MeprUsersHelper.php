@@ -34,8 +34,8 @@ class MeprUsersHelper {
 
   public static function get_email_params($usr) {
     $mepr_options = MeprOptions::fetch();
-    $ts = MeprUtils::mysql_date_to_ts($usr->user_registered);
-    $usr_date = date(__("F j, Y, g:i a", 'memberpress'),$ts);
+    $ts = MeprUtils::db_date_to_ts($usr->user_registered);
+    $usr_date = date_i18n(__("F j, Y, g:i a", 'memberpress'), $ts, true);
 
     $params = array(
       'user_id'            => $usr->ID,
@@ -61,16 +61,16 @@ class MeprUsersHelper {
       'login_url'          => $mepr_options->login_page_url()
     );
 
-    $ums = get_user_meta( $usr->ID );
-    if(isset($ums) and is_array($ums)) {
-      foreach( $ums as $umkey => $um ) {
-        // Only support first val for now and yes some of these will be serialized values
-        $params["usermeta:{$umkey}"] = $um[0];
+    $ums = MeprUtils::get_formatted_usermeta($usr->ID);
+
+    if(!empty($ums)) {
+      foreach($ums as $umkey => $umval) {
+        $params["usermeta:{$umkey}"] = $umval;
       }
     }
 
     // You know we're just going to lump the user record fields in here no problem
-    foreach( (array)$usr->rec as $ukey => $uval ) {
+    foreach((array)$usr->rec as $ukey => $uval) {
       $params["usermeta:{$ukey}"] = $uval;
     }
 
@@ -81,7 +81,7 @@ class MeprUsersHelper {
 
   public static function render_custom_field($line,$value='',$classes=array()) {
     $required_attr = $line->required ? 'required' : '';
-    $array_types = array( 'multiselect', 'checkboxes' );
+    $array_types = array( 'multiselect', 'checkboxes' ); //If we update this, we need make sure it doesn't break the {$usermeta:slug} stuff in MeprTransactionsHelper
     $bool_types  = array( 'checkbox' );
 
     // Figure out what type we have here
@@ -89,10 +89,10 @@ class MeprUsersHelper {
     $is_bool   = in_array( $line->field_type, $bool_types );
     $is_string = ( !$is_array && !$is_bool );
 
-    if(isset($_POST[$line->field_key])) {
-      if( $is_array ) { $value = $_POST[$line->field_key]; }
+    if(isset($_REQUEST[$line->field_key])) {
+      if( $is_array ) { $value = $_REQUEST[$line->field_key]; }
       else if( $is_bool ) { $value = true; }
-      else { $value = stripslashes($_POST[$line->field_key]); }
+      else { $value = stripslashes($_REQUEST[$line->field_key]); }
     }
     else if( $value==='' ) {
       if( $is_array && $line->field_type==='multiselect' ) {
@@ -112,9 +112,13 @@ class MeprUsersHelper {
         // We have to account for the possibility that the checkbox has been saved
         // with a value of '' instead of false so we have to formally check if the
         // value has been saved at some point in the past otherwise set as default
-        if( !!$current_user &&
-            MeprUtils::user_meta_exists( $current_user->ID, $line->field_key ) ) {
-          $value = !empty($value);
+        if($current_user !== false) {
+          if(MeprUtils::user_meta_exists($current_user->ID, $line->field_key)) {
+            $value = !empty($value);
+          }
+          else { //User may have unchecked the box during signup
+            $value = false;
+          }
         }
         else {
           $value = !empty($line->default_value);
@@ -134,6 +138,10 @@ class MeprUsersHelper {
       case 'text':
       case 'email':
         ?><input type="<?php echo $line->field_type; ?>" name="<?php echo $line->field_key; ?>" id="<?php echo $line->field_key; ?>" class="mepr-form-input <?php echo $class; ?>" value="<?php echo esc_attr($value); ?>" <?php echo $required_attr; ?> /><?php
+        break;
+
+      case 'url':
+        ?><input type="<?php echo $line->field_type; ?>" name="<?php echo $line->field_key; ?>" id="<?php echo $line->field_key; ?>" class="mepr-form-input <?php echo $class; ?>" value="<?php echo esc_attr($value); ?>" title="<?php _e('A URL must be prefixed with a protocol (eg. http://)', 'memberpress'); ?>" <?php echo $required_attr; ?> /><?php
         break;
 
       case 'textarea':
@@ -195,6 +203,8 @@ class MeprUsersHelper {
               <?php
             }
             else {
+              if(!is_array($value)) { $value = array(); } //Suppress some errors here
+
               $value[$o->option_value] = isset($value[$o->option_value]) ? true : false;
 
               ?>
@@ -236,7 +246,7 @@ class MeprUsersHelper {
     }
   }
 
-  public static function render_custom_fields( $product=null, $is_signup=false ) {
+  public static function render_custom_fields( $product=null, $from_page=null ) {
     $mepr_options = MeprOptions::fetch();
 
     if($logged_in = MeprUtils::is_user_logged_in()) {
@@ -264,18 +274,82 @@ class MeprUsersHelper {
     }
 
     //Maybe show the address fields too
-    if($mepr_options->show_address_fields && (is_null($product) || !$product->disable_address_fields)) {
-      $custom_fields = array_merge($mepr_options->address_fields, $custom_fields);
+    if($mepr_options->show_address_fields) {
+      if(is_null($product)) {
+        // Check if any memberships require address fields
+        if($user->show_address_fields()) {
+          $custom_fields = array_merge($mepr_options->address_fields, $custom_fields);
+        }
+      }
+      else {
+        if(!$product->disable_address_fields) {
+          $custom_fields = array_merge($mepr_options->address_fields, $custom_fields);
+        }
+      }
     }
 
+    //Give devs a chance to re-order these if they so wish
+    $custom_fields = MeprHooks::apply_filters('mepr_render_custom_fields', $custom_fields);
+
     foreach($custom_fields as $line) {
-      if($is_signup && !$line->show_on_signup) { continue; }
+      if('signup' == $from_page && !$line->show_on_signup) { continue; }
+      if('account' == $from_page && isset($line->show_in_account) && !$line->show_in_account) { continue; }
 
       $required = ($line->required?'*':'');
-      $value = ($logged_in?get_user_meta($user->ID,$line->field_key,true):'');
+      $value    = ($logged_in) ? get_user_meta($user->ID, $line->field_key, true) : '';
 
       MeprView::render('checkout/signup_row', get_defined_vars());
     }
   }
-}
 
+  // Renders the actual custom fields setup by the admin user. The fields rendered here are
+  // to allow admins and the users themselves to display and edit values for the custom fields.
+  public static function render_editable_custom_fields($user=null) {
+    $mepr_options = MeprOptions::fetch();
+
+    if(MeprUtils::is_mepr_admin()) { //Let admins see all fields
+      $custom_fields = $mepr_options->custom_fields;
+    }
+    else if(!is_null($user)) {
+      $custom_fields = $user->custom_profile_fields();
+    }
+    else {
+      return; // if we aren't an admin and don't have a user we have no business being here
+    }
+
+    if($mepr_options->show_address_fields) {
+      $custom_fields = array_merge($custom_fields, $mepr_options->address_fields); //Genius
+    }
+
+    if(!empty($custom_fields)) {
+      foreach($custom_fields as $line) {
+        $value = '';
+        if(!is_null($user)) {
+          $value = get_user_meta($user->ID, $line->field_key, true);
+        }
+
+        $required = ($line->required)?'<span class="description">'.__('(required)', 'memberpress').'</span>':'';
+
+        ?>
+        <tr>
+          <th>
+            <label for="<?php echo $line->field_key; ?>"><?php printf( __('%1$s:%2$s', 'memberpress'), stripslashes($line->field_name), $required ); ?></label>
+          </th>
+          <td>
+            <?php
+              echo self::render_custom_field($line, $value, array(
+                'text' => 'regular-text',
+                'email' => 'regular-text',
+                'url' => 'regular-text',
+                'textarea' => 'regular-text',
+                'date' => 'regular-text',
+                'states' => 'regular-text'
+              ));
+            ?>
+          </td>
+        </tr>
+        <?php
+      }
+    }
+  }
+}

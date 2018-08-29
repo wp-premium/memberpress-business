@@ -1,14 +1,9 @@
 (function($) {
   $(document).ready(function() {
-    $('.mepr-form [data-numeric]').payment('restrictNumeric');
-    $('.mepr-form .cc-number').payment('formatCardNumber');
-    $('.mepr-form .cc-exp').payment('formatCardExpiry');
-    $('.mepr-form .cc-cvc').payment('formatCardCVC');
-
     var meprValidateInput = function (obj) {
       $(obj).removeClass('invalid');
 
-      var form = $(obj).closest('.mepr-form');
+      var form = $(obj).closest('.mepr-signup-form');
 
       if ($(obj).attr('required') !== undefined) {
         var notBlank = true;
@@ -38,6 +33,12 @@
         mpToggleFieldValidation($(obj), validEmail);
       }
 
+      // Validate the URL by using the browser validation functions
+      if ($(obj).attr('type')==='url' && $(obj).val().length > 0) {
+        var validURL = $(obj).is(':valid');
+        mpToggleFieldValidation($(obj), validURL);
+      }
+
       if ($(obj).hasClass('mepr-password-confirm')) {
         var confirmMatch = $(obj).val() === form.find('.mepr-password').val();
         mpToggleFieldValidation($(obj), confirmMatch);
@@ -49,13 +50,36 @@
         var data = {
           action: 'mepr_validate_coupon',
           code: $(obj).val(),
-          prd_id: $(obj).attr("data-prd-id")
+          prd_id: $(obj).attr("data-prd-id"),
+          coupon_nonce: MeprSignup.coupon_nonce
         };
 
         $.post(MeprI18n.ajaxurl, data, function(res) {
           $(obj).prev('.mp-form-label').find('.mepr-coupon-loader').hide();
           res = res.trim();
           mpToggleFieldValidation($(obj), (res.toString() == 'true'));
+
+          if(res.toString() == 'true') {
+            var data_two = {
+              action: 'mepr_update_price_string_with_coupon',
+              code: $(obj).val(),
+              prd_id: $(obj).attr("data-prd-id"),
+              coupon_nonce: MeprSignup.coupon_nonce
+            };
+
+            $.post(MeprI18n.ajaxurl, data_two, function(res_two) {
+              res_two = res_two.trim();
+              if(res_two.toString() != 'false') {
+                form.find('div.mepr_price_cell').text(res_two);
+                $('body').animate( {
+                  scrollTop: form.find('div.mepr_price_cell').offset().top
+                }, 200, function() {
+                  form.find('div.mepr_price_cell').parent().hide();
+                  form.find('div.mepr_price_cell').parent().fadeIn(1000);
+                });
+              }
+            });
+          }
         });
       }
 
@@ -79,11 +103,11 @@
       meprValidateInput(this);
     });
 
-    $('body').on('click', '.mepr-form .mepr-submit', function (e) {
+    $('body').on('click', '.mepr-signup-form .mepr-submit', function (e) {
       // We want to control if/when the form is submitted
       e.preventDefault();
 
-      var form = $(this).closest('.mepr-form');
+      var form = $(this).closest('.mepr-signup-form');
       var button = $(this);
 
       $.each(form.find('.mepr-form-input'), function(i,obj) {
@@ -102,69 +126,36 @@
       }
     });
 
-    if($('.mepr-form .cc-number').val() == '') {
-      $('.mepr-form .cc-number').addClass('mepr-cards');
-    }
-
-    $('body').on('keyup', '.mepr-form .cc-number', function (e) {
-      if( $(this).val() == '' ) {
-        $(this).addClass('mepr-cards');
-      }
-      else {
-        $(this).removeClass('mepr-cards');
-      }
-    });
-
-    // Special handling for credit card fields (if they exist)
-    $('body').on('change blur', '.mepr-form .cc-number, .mepr-form .cc-exp, .mepr-form .cc-cvc', function (e) {
-      $(this).addClass('dirty');
-      $(this).removeClass('invalid');
-
-      var form = $(this).closest('.mepr-form');
-
-      form.find('.validation').removeClass('passed failed');
-
-      var cardNum = form.find('.cc-number').val();
-      var cardExp = form.find('.cc-exp').payment('cardExpiryVal');
-      var cardCvc = form.find('.cc-cvc').val();
-
-      var cardType = $.payment.cardType(form.find('.cc-number').val());
-
-      form.find('.dirty.cc-number').toggleClass('invalid', !$.payment.validateCardNumber(cardNum));
-      form.find('.dirty.cc-exp').toggleClass('invalid', !$.payment.validateCardExpiry(cardExp));
-      form.find('.dirty.cc-cvc').toggleClass('invalid', !$.payment.validateCardCVC(cardCvc, cardType));
-
-      form.find('.dirty.cc-number').toggleClass('valid', $.payment.validateCardNumber(cardNum));
-      form.find('.dirty.cc-exp').toggleClass('valid', $.payment.validateCardExpiry(cardExp));
-      form.find('.dirty.cc-cvc').toggleClass('valid', $.payment.validateCardCVC(cardCvc, cardType));
-
-      // Display errors
-      form.find('.invalid').prev('.mp-form-label').find('.cc-error').show();
-      form.find('.valid').prev('.mp-form-label').find('.cc-error').hide();
-
-      form.find('.cc-type').val(cardType);
-
-      if (form.find('.invalid').length) {
-        form.find('.validation').addClass('failed');
-      } else {
-        form.find('.validation').addClass('passed');
-      }
-    });
-
-    $('body').on('click', '.mepr_payment_method input.mepr-form-radio', function (e) {
-      var form = $(this).closest('.mepr-form');
+    $('body').on('click', '.mepr-signup-form .mepr_payment_method input.mepr-form-radio', function (e) {
+      var form = $(this).closest('.mepr-signup-form');
 
       var pmid = '#mp-pm-desc-' + $(this).val();
       var pmid_exists = (form.find(pmid).length > 0);
 
       form.find('.mepr-payment-method-desc-text').addClass('mepr-close');
-      if (pmid_exists) { form.find(pmid).removeClass('mepr-close'); }
-      form.find('.mepr-payment-method-desc-text.mepr-close').slideUp({
-        duration: 200,
-        complete: function() {
-          if (pmid_exists) { form.find(pmid).slideDown(200); }
+
+      if(pmid_exists) {
+        form.find(pmid).removeClass('mepr-close');
+      }
+
+      //If nothing has the mepr-close class, we still need to show this one's description
+      var mepr_close_exists = (form.find('.mepr-payment-method-desc-text.mepr-close').length > 0);
+
+      if(mepr_close_exists) {
+        form.find('.mepr-payment-method-desc-text.mepr-close').slideUp({
+          duration: 200,
+          complete: function() {
+            if(pmid_exists) {
+              form.find(pmid).slideDown(200);
+            }
+          }
+        });
+      } else {
+        if(pmid_exists) {
+          form.find(pmid).slideDown(200);
         }
-      });
+      }
     });
   });
 })(jQuery);
+

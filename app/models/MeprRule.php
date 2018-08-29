@@ -5,7 +5,6 @@ class MeprRule extends MeprCptModel {
   public static $mepr_type_str                = '_mepr_rules_type';
   public static $mepr_content_str             = '_mepr_rules_content';
   public static $is_mepr_content_regexp_str   = '_is_mepr_rules_content_regexp';
-  public static $mepr_access_str              = '_mepr_rules_access';
   public static $drip_enabled_str             = '_mepr_rules_drip_enabled';
   public static $drip_amount_str              = '_mepr_rules_drip_amount';
   public static $drip_unit_str                = '_mepr_rules_drip_unit';
@@ -30,16 +29,37 @@ class MeprRule extends MeprCptModel {
 
   public static $cpt                          = 'memberpressrule';
 
+  public static function mepr_access_types() {
+    return array(
+      array(
+        'label' => __('Membership', 'memberpress'),
+        'value' => 'membership'
+      ),
+      array(
+        'label' => __('Member', 'memberpress'),
+        'value' => 'member'
+      )
+    );
+  }
+
+  public static function mepr_access_operators() {
+    return array(
+      array(
+        'label' => __('Is', 'memberpress'),
+        'value' => 'is'
+      )
+    );
+  }
+
   /*** Instance Methods ***/
-  public function __construct($id = null) {
+  public function __construct($obj = null) {
     $this->load_cpt(
-      $id,
+      $obj,
       self::$cpt,
       array(
         'mepr_type' => 'all',
         'mepr_content' => '',
         'is_mepr_content_regexp' => false,
-        'mepr_access' => array(),
         'drip_enabled' => false,
         'drip_amount' => 0,
         'drip_unit' => 'days',
@@ -73,7 +93,6 @@ class MeprRule extends MeprCptModel {
     $this->validate_is_in_array($this->mepr_type, $rule_types, 'mepr_type');
     $this->validate_not_empty($this->mepr_content, 'mepr_content');
     $this->validate_is_bool($this->is_mepr_content_regexp, 'is_mepr_content_regexp');
-    $this->validate_is_array($this->mepr_access, 'mepr_access');
 
     $this->validate_is_bool($this->drip_enabled, 'drip_enabled');
     $this->validate_is_numeric($this->drip_amount, 'drip_amount');
@@ -112,14 +131,20 @@ class MeprRule extends MeprCptModel {
     static $types;
 
     if(!isset($types) or empty($types)) {
-      $types = array( 'all' => array(),
-                      'post' => array( 'all_posts'   => __('All Posts', 'memberpress'),
-                                       'single_post' => __('A Single Post', 'memberpress'),
-                                       'category'    => __('Posts Categorized', 'memberpress'),
-                                       'tag'         => __('Posts Tagged', 'memberpress') ),
-                      'page' => array( 'all_pages'   => __('All Pages', 'memberpress'),
-                                       'single_page' => __('A Single Page', 'memberpress'),
-                                       'parent_page' => __('Child Pages of', 'memberpress') ) );
+      $types = array(
+        'all' => array(),
+        'post' => array(
+          'all_posts'   => __('All Posts', 'memberpress'),
+          'single_post' => __('A Single Post', 'memberpress'),
+          'category'    => __('Posts Categorized', 'memberpress'),
+          'tag'         => __('Posts Tagged', 'memberpress')
+        ),
+        'page' => array(
+          'all_pages'   => __('All Pages', 'memberpress'),
+          'single_page' => __('A Single Page', 'memberpress'),
+          'parent_page' => __('Child Pages of', 'memberpress')
+        )
+      );
 
       $cpts = get_post_types(array("public" => true, "_builtin" => false), 'objects');
       unset($cpts['memberpressproduct']);
@@ -244,8 +269,7 @@ class MeprRule extends MeprCptModel {
     return false;
   }
 
-  public static function get_content($type,$id) /*tested*/
-  {
+  public static function get_content($type,$id) {
     if(preg_match('#^single_(.*?)$#', $type, $matches))
       return self::get_single($matches[1],$id);
     elseif(preg_match('#^parent_(.*?)$#', $type, $matches))
@@ -288,15 +312,18 @@ class MeprRule extends MeprCptModel {
     }
   }
 
-  public static function get_single_array($type) /*wrapperTested*/
-  {
-    $post_contents = get_posts(array('numberposts' => -1, 'post_type' => $type));
-    $contents = array();
+  public static function get_single_array($type) {
+    global $wpdb;
 
-    foreach($post_contents as $post)
-      $contents[$post->ID] = $post->post_title;
+    $lookup = $wpdb->get_results("SELECT ID, post_title FROM {$wpdb->posts} WHERE post_type = '{$type}'", OBJECT_K);
 
-    return $contents;
+    if(empty($lookup)) { return array(); }
+
+    foreach($lookup as $id => $obj) {
+      $lookup[$id] = stripslashes($obj->post_title);
+    }
+
+    return $lookup;
   }
 
   public static function search_singles($type,$search='',$limit=25) {
@@ -318,8 +345,12 @@ class MeprRule extends MeprCptModel {
 
     $query = MeprHooks::apply_filters('mepr-search-singles-query', $query, $type, $search);
 
-    return array_map( create_function( '$i', '$i->slug = preg_replace(\'!\' . preg_quote(home_url(), \'!\') . \'!\', \'\', MeprUtils::get_permalink($i->id)); $i->desc = "ID: {$i->id} | Slug: {$i->slug}"; return $i;' ),
-                      $wpdb->get_results($query) );
+    return array_map( function($i) {
+        $i->slug = preg_replace('!' . preg_quote(home_url(), '!') . '!', '', MeprUtils::get_permalink($i->id));
+        $i->desc = "ID: {$i->id} | Slug: {$i->slug}";
+        return $i;
+      },
+      $wpdb->get_results($query) );
   }
 
   public static function get_single($type,$id) {
@@ -346,15 +377,8 @@ class MeprRule extends MeprCptModel {
     return self::singles_have_contents($type);
   }
 
-  public static function get_parent_array($type='page') /*wrapperTested*/
-  {
-    $post_contents = get_posts(array('numberposts' => -1, 'post_type' => $type));
-    $contents = array();
-
-    foreach($post_contents as $post)
-      $contents[$post->ID] = $post->post_title;
-
-    return $contents;
+  public static function get_parent_array($type='page') {
+    return self::get_single_array($type);
   }
 
   public static function search_parents($type='page',$search='',$limit=25) {
@@ -369,13 +393,13 @@ class MeprRule extends MeprCptModel {
     return ( wp_count_terms( 'category', array('hide_empty' => 0) ) > 0 );
   }
 
-  public static function get_category_array() /*wrapperTested*/
-  {
+  public static function get_category_array() {
     $category_contents = get_categories(array('hide_empty' => 0));
     $contents = array();
 
-    foreach($category_contents as $category)
+    foreach($category_contents as $category) {
       $contents[$category->term_id] = $category->name;
+    }
 
     return $contents;
   }
@@ -399,8 +423,11 @@ class MeprRule extends MeprCptModel {
       $query = $wpdb->prepare( $query, $tax );
     }
 
-    return array_map( create_function( '$i', '$i->desc = "ID: {$i->id} | Slug: {$i->slug}"; return $i;' ),
-                      $wpdb->get_results($query) );
+    return array_map( function($i) {
+        $i->desc = "ID: {$i->id} | Slug: {$i->slug}";
+        return $i;
+      },
+      $wpdb->get_results($query) );
   }
 
   public static function get_term( $tax, $id ) {
@@ -434,13 +461,13 @@ class MeprRule extends MeprCptModel {
     return ( wp_count_terms( 'post_tag', array('get' => 'all') ) > 0 );
   }
 
-  public static function get_tag_array() /*wrapperTested*/
-  {
+  public static function get_tag_array() {
     $tag_contents = get_tags(array('get' => 'all'));
     $contents = array();
 
-    foreach($tag_contents as $tag)
+    foreach($tag_contents as $tag) {
       $contents[$tag->term_id] = $tag->name;
+    }
 
     return $contents;
   }
@@ -457,8 +484,7 @@ class MeprRule extends MeprCptModel {
     return ( wp_count_terms( $tax, array('get' => 'all') ) > 0 );
   }
 
-  public static function get_tax_array($tax) /*wrapperTested*/
-  {
+  public static function get_tax_array($tax) {
     $contents = array();
     $tax_contents = get_terms($tax,array('get' => 'all'));
 
@@ -502,49 +528,49 @@ class MeprRule extends MeprCptModel {
   // }
 
   // TODO: Create a convenience function calling this in MeprProduct once it's in place
-  public static function get_rules($post = false, $uri = false) { /*tested*/
+  public static function get_rules($context) { /*tested*/
     //Saves a ton of queries
     static $all_rules;
     $post_rules = array();
 
     if(!isset($all_rules)) {
-      $all_rule_posts = get_posts(array('numberposts' => -1, 'post_type' => self::$cpt, 'post_status' => 'publish'));
+      $all_rule_posts = MeprCptModel::all('MeprRule');
 
       $all_rules = array();
 
       foreach($all_rule_posts as $curr_post) {
-        if($curr_post->post_type == self::$cpt) { //pre_get_posts filter can override our post_type above in get_posts()
+        if($curr_post->post_type == self::$cpt) {
           $all_rules[] = new MeprRule($curr_post->ID);
         }
       }
     }
 
     foreach($all_rules as $curr_rule) {
-      if(is_object($post) and $curr_rule->mepr_type != 'custom') {
+      if(is_a($context, 'WP_Post') && $curr_rule->mepr_type != 'custom') {
         if( $curr_rule->mepr_type == 'all' ) {
           // We're going to add this rule immediately if it's set to all and it's not an exception
-          if( !self::is_exception_to_rule( $post, $curr_rule ) ) { $post_rules[] = $curr_rule; }
+          if( !self::is_exception_to_rule( $context, $curr_rule ) ) { $post_rules[] = $curr_rule; }
         }
         elseif(preg_match('#^all_tax_(.*?)$#', $curr_rule->mepr_type, $matches)) {
-          if( has_term( $curr_rule->mepr_content, $matches[1], $post->ID ) )
+          if( has_term( $curr_rule->mepr_content, $matches[1], $context->ID ) )
             $post_rules[] = $curr_rule;
         }
         elseif(preg_match('#^all_(.*?)$#', $curr_rule->mepr_type, $matches)) {
-          if( preg_match('#^'.preg_quote($post->post_type).'s?$#', $matches[1]) and
-              !self::is_exception_to_rule( $post, $curr_rule ) ) {
+          if( preg_match('#^'.preg_quote($context->post_type).'s?$#', $matches[1]) &&
+              !self::is_exception_to_rule( $context, $curr_rule ) ) {
             $post_rules[] = $curr_rule;
           }
         }
         elseif(preg_match('#^single_(.*?)$#', $curr_rule->mepr_type, $matches)) {
-          if( $post->post_type == $matches[1] and
-              $post->ID == $curr_rule->mepr_content ) {
+          if( $context->post_type == $matches[1] &&
+              $context->ID == $curr_rule->mepr_content ) {
             $post_rules[] = $curr_rule;
           }
         }
         elseif(preg_match('#^parent_(.*?)$#', $curr_rule->mepr_type, $matches)) {
-          if( $post->post_type == $matches[1] /* and
-              $post->post_parent == $curr_rule->mepr_content */ ) {
-            $ancestors = get_post_ancestors($post->ID);
+          if( $context->post_type == $matches[1] /* &&
+              $context->post_parent == $curr_rule->mepr_content */ ) {
+            $ancestors = get_post_ancestors($context->ID);
 
             //Let's protect all lineage of the parent page
             if(in_array($curr_rule->mepr_content, $ancestors, false)) {
@@ -553,79 +579,74 @@ class MeprRule extends MeprCptModel {
           }
         }
         elseif($curr_rule->mepr_type == 'category') {
-          if(in_category($curr_rule->mepr_content, $post->ID))
+          if(in_category($curr_rule->mepr_content, $context->ID))
             $post_rules[] = $curr_rule;
         }
         elseif($curr_rule->mepr_type == 'tag') {
-          if(has_tag($curr_rule->mepr_content, $post->ID))
+          if(has_tag($curr_rule->mepr_content, $context->ID))
             $post_rules[] = $curr_rule;
         }
         elseif(preg_match('#^tax_(.*?)\|\|cpt_(.*?)$#', $curr_rule->mepr_type, $matches)) {
-          if( $post->post_type == $matches[2] and
-              has_term( $curr_rule->mepr_content, $matches[1], $post->ID ) ) {
+          if( $context->post_type == $matches[2] &&
+              has_term( $curr_rule->mepr_content, $matches[1], $context->ID ) ) {
             $post_rules[] = $curr_rule;
           }
         }
       }
+      elseif($curr_rule->mepr_type == 'custom') {
+        $uri = empty($uri) ? $_SERVER['REQUEST_URI'] : $uri;
 
-      //Check if URI is not false
-      if($uri !== false and $curr_rule->mepr_type == 'custom')
-      {
-        $uri = ($uri !== true and !empty($uri))?$uri:$_SERVER['REQUEST_URI'];
-
-        if( ($curr_rule->is_mepr_content_regexp && preg_match("!" . $curr_rule->mepr_content . "!i", $uri)) ||
+        if( ($curr_rule->is_mepr_content_regexp && preg_match('~'.$curr_rule->mepr_content.'~i', $uri)) ||
             (!$curr_rule->is_mepr_content_regexp && strpos($uri, $curr_rule->mepr_content) === 0) ) {
           $post_rules[] = $curr_rule;
         }
       }
+      $post_rules = MeprHooks::apply_filters('mepr-extend-rules', $post_rules, $curr_rule, $context);
     } //End foreach
 
     return $post_rules;
   }
 
   // TODO: Move to MeprProduct once it's in place
-  public static function get_access_list($post = false, $uri = false) /*tested*/
+  // Returns: ["membership" => [1,2], "member" =>["foo"]]
+  public static function get_access_list($post) /*tested*/
   {
-    $product_access_array = array();
-    $rules = MeprRule::get_rules($post, $uri);
+    $access_array = array();
+    $rules = MeprRule::get_rules($post);
 
     foreach($rules as $rule) {
-      if(!empty($rule->mepr_access)) {
-        if(is_array($rule->mepr_access)) {
-          $product_access_array = array_merge($product_access_array, $rule->mepr_access);
+      foreach($rule->access_conditions() as $condition) {
+        if(!isset($access_array[$condition->access_type])) {
+          $access_array[$condition->access_type] = array();
         }
-        elseif(is_numeric($rule->mepr_access)) {
-          $product_access_array[] = $rule->mepr_access;
+        // Make sure they're unique
+        if(!in_array($condition->access_condition, $access_array[$condition->access_type])) {
+          array_push($access_array[$condition->access_type], $condition->access_condition);
         }
       }
     }
 
-    return array_unique($product_access_array);
+    return $access_array;
   }
 
-  public static function is_uri_locked_for_user($user, $uri)
+  public static function is_locked_for_user($user, $context)
   {
     // the content is not locked regardless of whether or not
     // a user is logged in so let's just return here okay?
-    $rules = MeprRule::get_rules(false, $uri);
-
+    $rules = MeprRule::get_rules($context);
     if(empty($rules)) { return false; }
 
-    // TODO: We may want to move this into the MeprUser model as an is_authorized function or something
-    $product_access_array = MeprRule::get_access_list(false, $uri);
-    // $user = MeprUtils::get_currentuserinfo(); //Uhhhhhh why is this here?
-    $subscriptions = $user->active_product_subscriptions();
-    $intersect = array_intersect($product_access_array, $subscriptions);
+    foreach($rules as $rule) {
+      if($user->has_access_from_rule($rule->ID)) {
+        if($rule->has_dripped()) {
+          if(!$rule->has_expired()) {
+            return false;
+          }
+        }
+      }
+    }
 
-    //Uhhh yeah let's be efficient here and not bother with the drips
-    //If the user hasn't purchased a membership for this uri
-    if(empty($intersect)) { return true; }
-
-    //We've already checked if the $rules are not empty so let's go ahead and use them
-    $dripped = self::has_an_active_rule_dripped($rules, $intersect);
-    $expired = self::has_an_active_rule_expired($rules, $intersect);
-
-    return !($dripped && !$expired);
+    return true;
   }
 
   public static function is_uri_locked($uri) {
@@ -653,7 +674,7 @@ class MeprRule extends MeprCptModel {
       return $is_locked[$md5_uri]; //If user is an admin, let's not go on.
     }
 
-    $rules = MeprRule::get_rules(false, $uri);
+    $rules = MeprRule::get_rules($uri);
 
     // the content is not locked regardless of whether or not
     // a user is logged in so let's just return here okay?
@@ -664,7 +685,7 @@ class MeprRule extends MeprCptModel {
 
     if(MeprUtils::is_user_logged_in()) {
       $user = MeprUtils::get_currentuserinfo();
-      $is_locked[$md5_uri] = self::is_uri_locked_for_user($user, $uri);
+      $is_locked[$md5_uri] = self::is_locked_for_user($user, $uri);
 
       MeprHooks::do_action('mepr-user-unauthorized'); //This one will be called for all events where the user is blocked by a rule
       MeprHooks::do_action('mepr-member-unauthorized', $user); //More specific (member means logged in user)
@@ -680,26 +701,6 @@ class MeprRule extends MeprCptModel {
 
       return $is_locked[$md5_uri]; // If there are rules on this content and the user isn't logged in -- it's locked
     }
-  }
-
-  public static function is_locked_for_user($user, $post) {
-    $rules = MeprRule::get_rules($post);
-
-    if(empty($rules)) { return false; }
-
-    $product_access_array = MeprRule::get_access_list($post);
-    $subscriptions = $user->active_product_subscriptions();
-    $intersect = array_intersect($product_access_array, $subscriptions);
-
-    //Uhhh yeah let's be efficient here and not bother with the drips
-    //If the user hasn't purchased a membership for this page/post
-    if(empty($intersect)) { return true; }
-
-    //We've already checked if the $rules are not empty so let's go ahead and use them
-    $dripped = self::has_an_active_rule_dripped($rules, $intersect);
-    $expired = self::has_an_active_rule_expired($rules, $intersect);
-
-    return !($dripped && !$expired);
   }
 
   // TODO: Move to MeprProduct once it's in place
@@ -756,38 +757,28 @@ class MeprRule extends MeprCptModel {
     }
   }
 
-  public static function has_an_active_rule_dripped($rules, $valid_prod_ids = array()) {
-    foreach($rules as $rule) {
-      //If the member hasn't purchased any memberships associated with this Rule, skip it
-      $intersect = array_intersect($valid_prod_ids, $rule->mepr_access);
-      if(empty($intersect)) { continue; }
-
-      if($rule->has_dripped()) { return true; }
-    }
-
-    return false;
-  }
-
   public function has_dripped() {
     if(!$this->drip_enabled) { return true; } //If the drip is disabled, then let's kill this thing
 
     if($this->drip_after == 'registers') {
-      $registered_ts = MeprUtils::mysql_date_to_ts(MeprUser::get_current_user_registration_date());
+      $registered_ts = MeprUtils::db_date_to_ts(MeprUser::get_current_user_registration_date());
 
       return $this->has_time_passed($registered_ts, $this->drip_unit, $this->drip_amount);
     }
 
     if($this->drip_after == 'fixed' && !empty($this->drip_after_fixed)) {
       $fixed_ts = strtotime($this->drip_after_fixed);
+      $has_dripped_fixed = $this->has_time_passed($fixed_ts, $this->drip_unit, $this->drip_amount, true);
 
-      return $this->has_time_passed($fixed_ts, $this->drip_unit, $this->drip_amount);
+      return MeprHooks::apply_filters('mepr-rule-has-dripped-fixed', $has_dripped_fixed, $this);
     }
 
     //Any product associated with this rule
     if($this->drip_after == 'rule-products') {
       $products = array();
 
-      foreach($this->mepr_access as $prod_id) {
+      $mepr_access = $this->mepr_access;
+      foreach($mepr_access['membership'] as $prod_id) {
         $products[] = new MeprProduct($prod_id);
       }
     }
@@ -800,7 +791,7 @@ class MeprRule extends MeprCptModel {
 
       if(!($current_user = MeprUtils::get_currentuserinfo())) { continue; } //Not logged in
 
-      $purchased_ts = MeprUtils::mysql_date_to_ts(MeprUser::get_user_product_signup_date($current_user->ID, $product->ID));
+      $purchased_ts = MeprUtils::db_date_to_ts(MeprUser::get_user_product_signup_date($current_user->ID, $product->ID));
 
       if(!$purchased_ts) { continue; } //User hasn't purchased this membership
 
@@ -812,31 +803,30 @@ class MeprRule extends MeprCptModel {
     return false; //If we made it here the user doens't have access
   }
 
-  public static function has_an_active_rule_expired($rules, $valid_prod_ids = array()) {
-    $has_expired = false;
+  // Returns: ["membership" => [1,2], "member" =>["foo"]]
+  public function mgm_mepr_access($mgm, $val='') {
+    $access_array = array();
 
-    foreach($rules as $rule) {
-      //If the member hasn't purchased any memberships associated with this Rule, skip it
-      $intersect = array_intersect($valid_prod_ids, $rule->mepr_access);
+    switch($mgm) {
+      case 'get':
+        foreach($this->access_conditions() as $condition) {
+          if(!isset($access_array[$condition->access_type])) {
+            $access_array[$condition->access_type] = array();
+          }
+          array_push($access_array[$condition->access_type], $condition->access_condition);
+        }
 
-      if(empty($intersect)) { continue; }
-
-      if($rule->has_expired()) {
-        $has_expired = true;
-      }
-      else { //If at least one rule hasn't expired let's return false.
-        return false;
-      }
+        return $access_array;
+      default:
+        return array();
     }
-
-    return $has_expired;
   }
 
   public function has_expired() {
     if(!$this->expires_enabled) { return false; } //If the expiration is disabled, then let's kill this thing
 
     if($this->expires_after == 'registers') {
-      $registered_ts = MeprUtils::mysql_date_to_ts(MeprUser::get_current_user_registration_date());
+      $registered_ts = MeprUtils::db_date_to_ts(MeprUser::get_current_user_registration_date());
 
       return $this->has_time_passed($registered_ts, $this->expires_unit, $this->expires_amount);
     }
@@ -844,14 +834,15 @@ class MeprRule extends MeprCptModel {
     if($this->expires_after == 'fixed' && !empty($this->expires_after_fixed)) {
       $fixed_ts = strtotime($this->expires_after_fixed);
 
-      return $this->has_time_passed($fixed_ts, $this->drip_unit, $this->drip_amount);
+      return $this->has_time_passed($fixed_ts, $this->drip_unit, $this->drip_amount, true);
     }
 
     //Any product associated with this rule
     if($this->expires_after == 'rule-products') {
       $products = array();
 
-      foreach($this->mepr_access as $prod_id) {
+      $mepr_access = $this->mepr_access;
+      foreach($mepr_access['membership'] as $prod_id) {
         $products[] = new MeprProduct($prod_id);
       }
     }
@@ -864,7 +855,7 @@ class MeprRule extends MeprCptModel {
 
       if(!($current_user = MeprUtils::get_currentuserinfo())) { continue; }
 
-      $purchased_ts = MeprUtils::mysql_date_to_ts(MeprUser::get_user_product_signup_date($current_user->ID, $product->ID));
+      $purchased_ts = MeprUtils::db_date_to_ts(MeprUser::get_user_product_signup_date($current_user->ID, $product->ID));
 
       if(!$purchased_ts) { continue; } //User hasn't purchased this
 
@@ -878,11 +869,13 @@ class MeprRule extends MeprCptModel {
   }
 
   //Should probably put this in Utils at some point
-  public function has_time_passed($ts, $unit, $amount) {
+  public function has_time_passed($ts, $unit, $amount, $is_fixed = false) {
     //TODO -- should make this use local WP timezone instead
     //Convert $ts to the start of the day, so drips/expirations don't come in at odd hours throughout the day
-    $datetime = date('Y-m-d 00:00:01', $ts);
-    $ts = strtotime($datetime);
+    if(!$is_fixed) {
+      $datetime = gmdate('Y-m-d 00:00:01', $ts);
+      $ts = strtotime($datetime);
+    }
 
     switch($unit) {
       case 'days':
@@ -910,32 +903,42 @@ class MeprRule extends MeprCptModel {
     return false;
   }
 
-  public function get_formatted_accesses() /*tested*/
-  {
+  public function get_formatted_accesses() {
     $formatted_array = array();
 
-    if(isset($this->mepr_access) and is_array($this->mepr_access))
-    {
-      foreach($this->mepr_access as $access)
-      {
-        $product = get_post($access);
-
-        if($product)
-          $formatted_array[] = $product->post_title;
+    foreach($this->mepr_access as $access_key => $access_values) {
+      if($access_key == 'membership') {
+        foreach($access_values as $access) {
+          $product = get_post($access);
+          if($product) {
+            $formatted_array[] = $product->post_title;
+          }
+        }
+      }
+      else {
+        $formatted_array = array_merge($formatted_array, $access_values);
       }
     }
 
     return $formatted_array;
   }
 
+  public function access_conditions() {
+    $mepr_db = new MeprDb();
+
+    return $mepr_db->get_records($mepr_db->rule_access_conditions, array('rule_id' => $this->ID));
+  }
+
+  public function delete_access_conditions() {
+    $mepr_db = new MeprDb();
+
+    return $mepr_db->delete_records($mepr_db->rule_access_conditions, array('rule_id' => $this->ID));
+  }
+
   public function store_meta() {
     update_post_meta($this->ID, self::$mepr_type_str, $this->mepr_type);
     update_post_meta($this->ID, self::$mepr_content_str, $this->mepr_content);
     update_post_meta($this->ID, self::$is_mepr_content_regexp_str, $this->is_mepr_content_regexp);
-
-    // Not sure what happened with the wp api but we now have to delete these arrays before re-storing them
-    delete_post_meta($this->ID, self::$mepr_access_str);
-    update_post_meta($this->ID, self::$mepr_access_str, $this->mepr_access);
 
     update_post_meta($this->ID, self::$drip_enabled_str, $this->drip_enabled);
     update_post_meta($this->ID, self::$drip_amount_str, $this->drip_amount);
@@ -1030,25 +1033,16 @@ class MeprRule extends MeprCptModel {
 
     //If rule doesn't exist, has no memberships associated with it, or
     //we're an Admin let's return the full content
-    if(!isset($rule->ID) || (int)$rule->ID <= 0 || empty($rule->mepr_access) || MeprUtils::is_mepr_admin())
+    if(!isset($rule->ID) || (int)$rule->ID <= 0 || MeprUtils::is_mepr_admin())
       return false;
 
     //Make sure this page/post/cpt is not in the "except" list of an all_* Rule
     //TODO -- really need to take the "except" list into consideration here using $current_post if it's set
 
     //Now we know the user is logged in and the rule is valid
-    //let's see if they have purchased one of the memberships listed in this rule
+    //let's see if they have access through memberships or members rule conditions
     $user = MeprUtils::get_currentuserinfo();
-    $subscriptions = $user->active_product_subscriptions();
-    $intersect = array_intersect($rule->mepr_access, $subscriptions);
-
-    //If intersection is empty, user has no access
-    if(empty($intersect))
-      return true;
-
-    //Uhhh ... if we've made it here the user should be validated
-    //for this snippet protection, so let's return the full content
-    return false;
+    return (false === $user->has_access_from_rule($rule->ID));
   }
 
   public static function get_global_unauth_settings() {
@@ -1154,10 +1148,18 @@ class MeprRule extends MeprCptModel {
         $unauth->excerpt = wpautop($post->post_excerpt);
       }
     }
-    elseif($unauth->excerpt_type == 'excerpt')
-      $unauth->excerpt = wpautop($post->post_excerpt);
-    else
+    elseif($unauth->excerpt_type == 'excerpt') {
+      global $wp_filter;
+      $content_filters = $wp_filter['the_content'];
+      $wp_filter['the_content'] = (class_exists('WP_Hook'))?new WP_Hook():array(); //WP 4.7 adds WP_Hook class
+
+      $unauth->excerpt = wpautop(get_the_excerpt($post)); //This calls the_content so we need to remove the filters to prevent eternal loops
+
+      $wp_filter['the_content'] = $content_filters; //Restore the filters again
+    }
+    else {
       $unauth->excerpt = '';
+    }
 
     // - Messages
     if($post_settings->unauth_message_type != 'default') {

@@ -34,5 +34,21 @@
         ?>
       </table>
     </td>
+    <td class="mepr-products-col">
+      <h4><?php _e('Members with Access:', 'memberpress'); ?></h4>
+      <p class="description"><?php _e('Members below will be able to access this content. This list is calculated from the Rules that protect this content.', 'memberpress'); ?></p>
+      <table>
+        <?php
+        foreach( $members as $member ):
+          ?>
+            <tr>
+              <td><strong><?php echo $member; ?></strong></td>
+              <td><a href="<?php echo admin_url("post.php?post={$rule->ID}&action=edit"); ?>" class="button"><?php _e("Edit", 'memberpress'); ?></a></td>
+            </tr>
+          <?php
+        endforeach;
+        ?>
+      </table>
+    </td>
   </tr>
 </table>

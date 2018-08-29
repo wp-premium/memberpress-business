@@ -42,12 +42,39 @@ class MeprLoginCtrl extends MeprBaseCtrl {
 
   // Grabs a string of the login form
   public function render_login_form($atts=array(), $content='', $shortcode=true) {
+    global $post;
+    $mepr_options = MeprOptions::fetch();
+
+    if(isset($atts['redirect_to']) && !empty($atts['redirect_to'])) {
+      // Security fix. Restrict redirect_to param to safe URLs PT#154812459
+      $_REQUEST['redirect_to'] = wp_validate_redirect($atts['redirect_to'], apply_filters( 'wp_safe_redirect_fallback', home_url(), 302));
+    }
+
     ob_start();
 
-    $this->display_login_form(
-      $shortcode,
-      (isset($atts['use_redirect']) && $atts['use_redirect']=='true')
-    );
+    //BEGIN TEMP WPML FIX
+    if( $shortcode && isset($_REQUEST['action']) &&
+        $_REQUEST['action'] != 'mepr_unauthorized' &&
+        $_REQUEST['action'] != 'bpnoaccess' && //BuddyPress fix
+        !defined('DOING_AJAX') ) { //Don't do this if it's an ajax request. Probably loading up the form shortcode via AJAX
+      //Need to check for this POST first
+      if($_REQUEST['action'] == 'mepr_process_reset_password_form') {
+        $this->process_reset_password_form();
+      }
+      elseif($_REQUEST['action'] == 'forgot_password') {
+        $this->display_forgot_password_form();
+      }
+      elseif($_REQUEST['action'] == 'reset_password') {
+        $this->display_reset_password_form($_REQUEST['mkey'], $_REQUEST['u']);
+      }
+    }
+    //END TEMP WPML FIX
+    else {
+      $this->display_login_form(
+        $shortcode,
+        (isset($atts['use_redirect']) && $atts['use_redirect']=='true')
+      );
+    }
 
     return ob_get_clean();
   }
@@ -64,18 +91,21 @@ class MeprLoginCtrl extends MeprBaseCtrl {
 
     // if redirect_to isset then set it to the query param
     if(isset($_REQUEST['redirect_to']) && !empty($_REQUEST['redirect_to'])) {
-      $redirect_to = $_REQUEST['redirect_to'];
+      $redirect_to = urldecode($_REQUEST['redirect_to']);
+      // Security fix. Restrict redirect_to param to safe URLs PT#154812459
+      $redirect_to = wp_validate_redirect($redirect_to, apply_filters( 'wp_safe_redirect_fallback', home_url(), 302));
     }
 
     // if we're on a page other than the login page and we're in a shortcode
     if((!isset($_REQUEST['redirect_to']) || empty($_REQUEST['redirect_to'])) &&
        false!==$shortcode && !is_page($login_page_id) && false===$widget_use_redirect_urls) {
-      $redirect_to = MeprUtils::get_permalink($current_post->ID);
+      // $redirect_to = MeprUtils::get_permalink($current_post->ID);
+      $redirect_to = esc_url($_SERVER['REQUEST_URI']);
     }
 
     // Check if we've got an unauth page set here
     // Is this even used here??? I don't think so, but leaving it here just in case
-    if(isset($_REQUEST['mepr-unauth-page'])) {
+    if(isset($_REQUEST['mepr-unauth-page']) && !isset($_REQUEST['redirect_to'])) {
       $redirect_to = MeprUtils::get_permalink($_REQUEST['mepr-unauth-page']);
     }
 
@@ -98,6 +128,7 @@ class MeprLoginCtrl extends MeprBaseCtrl {
 
       //Need to override $redirect_to here if a per-membership login redirect URL is set (but do not track a login event)
       $redirect_to = MeprProductsCtrl::track_and_override_login_redirect_mepr($redirect_to, $wp_user, true, false);
+      $redirect_to = urlencode($redirect_to);
 
       MeprView::render('/login/form', get_defined_vars());
       return;
@@ -116,18 +147,21 @@ class MeprLoginCtrl extends MeprBaseCtrl {
     $mepr_options = MeprOptions::fetch();
 
     $errors = MeprHooks::apply_filters( 'mepr-validate-login',
-      MeprUser::validate_login($_POST, array())
+      MeprUser::validate_login($_REQUEST, array())
     );
 
-    if(is_email($_POST['log'])) {
-      $user = get_user_by('email', $_POST['log']);
+    if(is_email($_REQUEST['log'])) {
+      $user = get_user_by('email', $_REQUEST['log']);
 
       if($user !== false) {
-        $_POST['log'] = $user->user_login;
+        $_REQUEST['log'] = $user->user_login;
       }
     }
 
-    if(!empty($errors)) { $_REQUEST['errors'] = $errors; return; }
+    if(!empty($errors)) {
+      $_REQUEST['errors'] = $errors;
+      return;
+    }
 
     if(!function_exists('wp_signon')) {
       require_once(ABSPATH . WPINC . '/user.php');
@@ -135,14 +169,29 @@ class MeprLoginCtrl extends MeprBaseCtrl {
 
     $wp_user = wp_signon(
       array(
-        'user_login' => $_POST['log'],
-        'user_password' => $_POST['pwd'],
-        'remember' => isset($_POST['rememberme'])
-      )
+        'user_login' => $_REQUEST['log'],
+        'user_password' => $_REQUEST['pwd'],
+        'remember' => isset($_REQUEST['rememberme'])
+      ),
+      MeprUtils::is_ssl() //May help with the users getting logged out when going between http and https
     );
 
-    $redirect_to = MeprHooks::apply_filters( 'mepr-process-login-redirect-url',
-      (isset($_POST['redirect_to'])?$_POST['redirect_to']:$mepr_options->login_redirect_url),
+    if(is_wp_error($wp_user)) {
+      $_REQUEST['errors'] = $wp_user->get_error_messages();
+      return;
+    }
+
+    if(isset($_REQUEST['redirect_to'])) {
+      $redirect_to = urldecode($_REQUEST['redirect_to']);
+      // Security fix. Restrict redirect_to param to safe URLs PT#154812459
+      $redirect_to = wp_validate_redirect($redirect_to, apply_filters( 'wp_safe_redirect_fallback', home_url(), 302));
+    }
+    else {
+      $redirect_to = $mepr_options->login_redirect_url;
+    }
+    $redirect_to = MeprHooks::apply_filters(
+      'mepr-process-login-redirect-url',
+      $redirect_to,
       $wp_user
     );
 
@@ -153,23 +202,23 @@ class MeprLoginCtrl extends MeprBaseCtrl {
   public function logout_redirect_override() {
     $mepr_options = MeprOptions::fetch();
 
-    if(isset($mepr_options->logout_redirect_url) &&
-       !empty($mepr_options->logout_redirect_url)) {
+    if(isset($mepr_options->logout_redirect_url) && !empty($mepr_options->logout_redirect_url)) {
       MeprUtils::wp_redirect($mepr_options->logout_redirect_url);
       exit;
     }
   }
 
   // Override the default wordpress login url
-  public function override_wp_login_url($url, $redirect) {
+  public function override_wp_login_url($url, $redirect_to) {
     $mepr_options = MeprOptions::fetch();
+    $redirect_to = urldecode($redirect_to); // might not be urlencoded, but let's do this just in case before we call urlencode below
 
     if(is_admin() || !$mepr_options->force_login_page_url || strpos($_SERVER['REQUEST_URI'], 'wp-login.php') !== false) {
       return $url;
     }
 
-    if(!empty($redirect)) {
-      $new_login_url = $mepr_options->login_page_url('redirect_to=' . $redirect);
+    if(!empty($redirect_to)) {
+      $new_login_url = $mepr_options->login_page_url('redirect_to=' . urlencode($redirect_to));
     }
     else {
       $new_login_url = $mepr_options->login_page_url();
@@ -194,7 +243,7 @@ class MeprLoginCtrl extends MeprBaseCtrl {
 
   public function process_forgot_password_form() {
     $mepr_options = MeprOptions::fetch();
-    $errors = MeprUser::validate_forgot_password($_POST,array());
+    $errors = MeprHooks::apply_filters('mepr-validate-forgot-password', MeprUser::validate_forgot_password($_POST, array()));
 
     extract($_POST);
 
@@ -268,4 +317,3 @@ class MeprLoginCtrl extends MeprBaseCtrl {
   }
 
 }
-

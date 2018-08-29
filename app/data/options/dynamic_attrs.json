@@ -42,6 +42,9 @@
   "tax_avalara_key": {
     "default": "",
     "validations": []
+  },
+  "tax_avalara_account_id": {
+    "default": "",
+    "validations": []
   }
 }
-

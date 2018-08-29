@@ -21,6 +21,11 @@
     </div>
 
     <div class="info_block">
+      <span class="info_block_title"><?php _e('Total WP Users', 'memberpress'); ?></span>
+      <h3><?php echo MeprReports::get_total_wp_users_count(); ?></h3>
+    </div>
+
+    <div class="info_block">
       <span class="info_block_title"><?php _e('Active Free Members', 'memberpress'); ?></span>
       <h3><?php echo MeprReports::get_free_active_members_count(); ?></h3>
     </div>
